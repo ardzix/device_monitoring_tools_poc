@@ -64,7 +64,9 @@ func (c *HTTPClient) AddData(dataType string, data map[string]interface{}) {
 	case "file_access":
 		c.data.FileAccess = append(c.data.FileAccess, data)
 	case "usb_devices":
-		c.data.USBDevices = append(c.data.USBDevices, data)
+		// For USB devices, we only want to keep the most recent state
+		// Clear previous entries and add the new one
+		c.data.USBDevices = []map[string]interface{}{data}
 	case "activity_logs":
 		c.data.ActivityLogs = append(c.data.ActivityLogs, data)
 	}
