@@ -60,4 +60,10 @@ class FileAccessLogSerializer(serializers.ModelSerializer):
 class USBDeviceLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = USBDeviceLog
-        fields = '__all__' 
+        fields = '__all__'
+
+    def to_internal_value(self, data):
+        # Map 'name' to 'device_name' if present
+        if 'name' in data:
+            data['device_name'] = data.pop('name')
+        return super().to_internal_value(data) 

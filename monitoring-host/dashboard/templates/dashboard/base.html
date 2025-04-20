@@ -1,0 +1,107 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Employee Monitoring Dashboard{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        [x-cloak] { display: none !important; }
+        .smooth-transition { transition: all 0.3s ease-in-out; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen flex" x-data="{ sidebarOpen: true }">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-gray-800 text-white fixed h-full smooth-transition" 
+               :class="{ '-ml-64': !sidebarOpen }">
+            <div class="p-4">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-2xl font-bold">Security Monitor</h1>
+                    <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+                <nav class="mt-8">
+                    <a href="{% url 'dashboard' %}" 
+                       class="flex items-center p-2 rounded-lg {% if request.path == '/dashboard/' %}bg-gray-700{% endif %} hover:bg-gray-700">
+                        <i class="fas fa-chart-line w-6"></i>
+                        <span class="ml-3">Dashboard</span>
+                    </a>
+                    <a href="{% url 'logs_explorer' %}" 
+                       class="flex items-center p-2 rounded-lg {% if request.path == '/dashboard/logs/' %}bg-gray-700{% endif %} hover:bg-gray-700 mt-2">
+                        <i class="fas fa-search w-6"></i>
+                        <span class="ml-3">Logs Explorer</span>
+                    </a>
+                    <a href="/admin/" 
+                       class="flex items-center p-2 rounded-lg hover:bg-gray-700 mt-2">
+                        <i class="fas fa-cog w-6"></i>
+                        <span class="ml-3">Admin Panel</span>
+                    </a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 ml-0 lg:ml-64 p-6">
+            <!-- Top Bar -->
+            <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-semibold text-gray-800">{% block page_title %}Dashboard{% endblock %}</h2>
+                    <div class="flex items-center space-x-4">
+                        <button class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 smooth-transition">
+                            <i class="fas fa-download mr-2"></i>Export CSV
+                        </button>
+                        <div class="relative">
+                            <input type="text" placeholder="Search..." 
+                                   class="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i class="fas fa-search absolute right-3 top-2 text-gray-400"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="space-y-6">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Template -->
+    <template x-if="showModal">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold" x-text="modalTitle"></h3>
+                    <button @click="showModal = false" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div x-html="modalContent"></div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('dashboard', () => ({
+                showModal: false,
+                modalTitle: '',
+                modalContent: '',
+                openModal(title, content) {
+                    this.modalTitle = title;
+                    this.modalContent = content;
+                    this.showModal = true;
+                }
+            }))
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

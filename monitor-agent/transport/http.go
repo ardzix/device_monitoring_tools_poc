@@ -83,6 +83,9 @@ func (c *HTTPClient) SendBulkData() error {
 	}
 	c.mutex.Unlock()
 
+	// Log the data being sent
+	log.Printf("Sending data: %+v", data)
+
 	// Create a multipart form
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
@@ -131,7 +134,11 @@ func (c *HTTPClient) SendBulkData() error {
 
 	writer.Close()
 
-	req, err := http.NewRequest("POST", c.baseURL+"/api/bulk/", &requestBody)
+	// Log the request URL and headers
+	url := c.baseURL + "/api/bulk/"
+	log.Printf("Sending request to: %s", url)
+
+	req, err := http.NewRequest("POST", url, &requestBody)
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
 	}
@@ -140,14 +147,24 @@ func (c *HTTPClient) SendBulkData() error {
 	req.Header.Set("Connection", "keep-alive")
 	req.Close = false
 
+	// Log the request headers
+	log.Printf("Request headers: %+v", req.Header)
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
+	defer resp.Body.Close()
 
-	// Read the entire response body and close it
+	// Read the entire response body
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	if err != nil {
+		return fmt.Errorf("error reading response body: %v", err)
+	}
+
+	// Log the response status and body
+	log.Printf("Response status: %d", resp.StatusCode)
+	log.Printf("Response body: %s", string(body))
 
 	if resp.StatusCode != http.StatusCreated {
 		return fmt.Errorf("unexpected status code: %d, body: %s", resp.StatusCode, string(body))

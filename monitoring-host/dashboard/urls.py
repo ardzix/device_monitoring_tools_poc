@@ -6,7 +6,9 @@ from .views import (
     WebsiteVisitLogViewSet,
     FileAccessLogViewSet,
     USBDeviceLogViewSet,
-    BulkMonitoringViewSet
+    BulkMonitoringViewSet,
+    dashboard_view,
+    logs_explorer_view
 )
 
 router = DefaultRouter()
@@ -18,5 +20,7 @@ router.register(r'usb-devices', USBDeviceLogViewSet)
 router.register(r'bulk', BulkMonitoringViewSet, basename='bulk')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('dashboard/', dashboard_view, name='dashboard'),
+    path('api/', include(router.urls)),
+    path('logs/', logs_explorer_view, name='logs_explorer'),
 ] 

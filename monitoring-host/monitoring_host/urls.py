@@ -18,14 +18,9 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from rest_framework.routers import DefaultRouter
-from dashboard.views import ActivityLogViewSet
-
-router = DefaultRouter()
-router.register(r'logs', ActivityLogViewSet)
+from django.views.generic import RedirectView
 
 urlpatterns = [
+    path('', include('dashboard.urls')),  # Include dashboard URLs
     path('admin/', admin.site.urls),
-    path('api/', include(router.urls)),
-    path('api/', include('dashboard.urls')),  # Include dashboard URLs
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

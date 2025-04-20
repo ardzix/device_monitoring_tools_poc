@@ -1,0 +1,214 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Monitoring Overview{% endblock %}
+
+{% block content %}
+<!-- Stats Overview -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- Total Activity Logs -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Total Activity Logs</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ total_activity_logs }}</h3>
+                <p class="text-sm text-green-500">Today</p>
+            </div>
+            <div class="bg-blue-100 p-3 rounded-full">
+                <i class="fas fa-chart-line text-blue-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flagged Incidents -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Flagged Incidents</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ flagged_incidents }}</h3>
+                <p class="text-sm text-red-500">High Risk</p>
+            </div>
+            <div class="bg-red-100 p-3 rounded-full">
+                <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Keywords -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Top Keywords</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ top_keywords|length }}</h3>
+                <p class="text-sm text-yellow-500">Flagged</p>
+            </div>
+            <div class="bg-yellow-100 p-3 rounded-full">
+                <i class="fas fa-key text-yellow-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- USB Devices -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">USB Devices</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ usb_devices }}</h3>
+                <p class="text-sm text-purple-500">Connected</p>
+            </div>
+            <div class="bg-purple-100 p-3 rounded-full">
+                <i class="fas fa-usb text-purple-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts and Data -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <!-- Daily Flagged Trend -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4">Daily Flagged Trend</h3>
+        <canvas id="flaggedTrendChart" height="300"></canvas>
+    </div>
+
+    <!-- Risk Level Distribution -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4">Risk Level Distribution</h3>
+        <canvas id="riskLevelChart" height="300"></canvas>
+    </div>
+</div>
+
+<!-- Top Lists -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+    <!-- Top Websites -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4">Top Websites</h3>
+        <div class="space-y-4">
+            {% for website in top_websites %}
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-globe text-blue-500"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium">{{ website.title }}</p>
+                        <p class="text-xs text-gray-500">{{ website.url }}</p>
+                    </div>
+                </div>
+                <span class="text-sm text-gray-500">{{ website.duration }}m</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Top Apps -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4">Top Applications</h3>
+        <div class="space-y-4">
+            {% for app in top_apps %}
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-window-maximize text-green-500"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium">{{ app.name }}</p>
+                        <p class="text-xs text-gray-500">{{ app.window_title }}</p>
+                    </div>
+                </div>
+                <span class="text-sm text-gray-500">{{ app.duration }}m</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Top Files -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4">Top Accessed Files</h3>
+        <div class="space-y-4">
+            {% for file in top_files %}
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-file text-purple-500"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium">{{ file.name }}</p>
+                        <p class="text-xs text-gray-500">{{ file.path }}</p>
+                    </div>
+                </div>
+                <span class="text-sm text-gray-500">{{ file.count }}x</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Screenshot Carousel -->
+<div class="bg-white rounded-lg shadow-sm p-6 mt-6">
+    <h3 class="text-lg font-semibold mb-4">Recent Flagged Screenshots</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {% for screenshot in recent_screenshots %}
+        <div class="relative group cursor-pointer" @click="openModal('Screenshot Details', '{{ screenshot.details }}')">
+            <img src="{{ screenshot.url }}" alt="Screenshot" class="w-full h-48 object-cover rounded-lg">
+            <div class="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="text-white text-sm">Click to view details</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Daily Flagged Trend Chart
+    const flaggedTrendCtx = document.getElementById('flaggedTrendChart').getContext('2d');
+    new Chart(flaggedTrendCtx, {
+        type: 'line',
+        data: {
+            labels: {{ flagged_trend.labels|safe }},
+            datasets: [{
+                label: 'Flagged Incidents',
+                data: {{ flagged_trend.data|safe }},
+                borderColor: 'rgb(239, 68, 68)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+
+    // Risk Level Distribution Chart
+    const riskLevelCtx = document.getElementById('riskLevelChart').getContext('2d');
+    new Chart(riskLevelCtx, {
+        type: 'pie',
+        data: {
+            labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+            datasets: [{
+                data: {{ risk_levels|safe }},
+                backgroundColor: [
+                    'rgb(239, 68, 68)',
+                    'rgb(234, 179, 8)',
+                    'rgb(34, 197, 94)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Filter Panel -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Logs Explorer</h5>
+            <button class="btn btn-primary" onclick="exportToCSV()">
+                <i class="fas fa-download"></i> Export CSV
+            </button>
+        </div>
+        <div class="card-body">
+            <form id="filterForm" method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="log_type" class="form-label">Log Type</label>
+                    <select name="log_type" id="log_type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="activity" {% if log_type == 'activity' %}selected{% endif %}>Activity</option>
+                        <option value="app_usage" {% if log_type == 'app_usage' %}selected{% endif %}>App Usage</option>
+                        <option value="website" {% if log_type == 'website' %}selected{% endif %}>Website Visits</option>
+                        <option value="file" {% if log_type == 'file' %}selected{% endif %}>File Access</option>
+                        <option value="usb" {% if log_type == 'usb' %}selected{% endif %}>USB Devices</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="date_from" class="form-label">From Date</label>
+                    <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="date_to" class="form-label">To Date</label>
+                    <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="keyword" class="form-label">Keyword Search</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="keyword" name="keyword" value="{{ keyword }}">
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearKeyword()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" id="flagged_only" name="flagged_only" value="true" {% if flagged_only %}checked{% endif %}>
+                        <label class="form-check-label" for="flagged_only">
+                            Flagged Items Only
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input class="form-check-input" type="checkbox" id="has_screenshot" name="has_screenshot" value="true" {% if has_screenshot %}checked{% endif %}>
+                        <label class="form-check-label" for="has_screenshot">
+                            With Screenshots Only
+                        </label>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="resetFilters()">
+                        <i class="fas fa-undo"></i> Reset
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Logs Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Monitoring Logs</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}sort=timestamp{% if sort == 'timestamp' and order == 'asc' %}&order=desc{% else %}&order=asc{% endif %}">
+                                    Timestamp
+                                    {% if sort == 'timestamp' %}
+                                        <i class="fas fa-sort-{% if order == 'asc' %}up{% else %}down{% endif %}"></i>
+                                    {% else %}
+                                        <i class="fas fa-sort"></i>
+                                    {% endif %}
+                                </a>
+                            </th>
+                            <th>Type</th>
+                            <th>Details</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in page_obj %}
+                        <tr class="{% if log.is_flagged %}table-warning{% endif %}">
+                            <td>{{ log.timestamp }}</td>
+                            <td>
+                                {% if log.type == 'activity' %}
+                                    <span class="badge bg-primary">Activity</span>
+                                {% elif log.type == 'app_usage' %}
+                                    <span class="badge bg-success">App Usage</span>
+                                {% elif log.type == 'website' %}
+                                    <span class="badge bg-info">Website</span>
+                                {% elif log.type == 'file' %}
+                                    <span class="badge bg-warning">File</span>
+                                {% elif log.type == 'usb' %}
+                                    <span class="badge bg-danger">USB</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.type == 'activity' %}
+                                    <strong>Window:</strong> {{ log.window_title }}<br>
+                                    {% if log.keywords %}
+                                        <strong>Keywords:</strong> {{ log.keywords|join:", " }}<br>
+                                    {% endif %}
+                                    {% if log.analysis %}
+                                        <strong>Analysis:</strong> {{ log.analysis }}
+                                    {% endif %}
+                                {% elif log.type == 'app_usage' %}
+                                    <strong>App:</strong> {{ log.app_name }}<br>
+                                    <strong>Window:</strong> {{ log.window_title }}<br>
+                                    <strong>Duration:</strong> {{ log.duration }}s
+                                {% elif log.type == 'website' %}
+                                    <strong>URL:</strong> {{ log.url }}<br>
+                                    <strong>Title:</strong> {{ log.title }}<br>
+                                    <strong>Duration:</strong> {{ log.duration }}s
+                                {% elif log.type == 'file' %}
+                                    <strong>Path:</strong> {{ log.file_path }}<br>
+                                    <strong>Operation:</strong> {{ log.operation }}<br>
+                                    <strong>Process:</strong> {{ log.process_name }}
+                                {% elif log.type == 'usb' %}
+                                    <strong>Device:</strong> {{ log.device_name }}<br>
+                                    <strong>Action:</strong> {{ log.action }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.type == 'activity' and log.screenshot %}
+                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#screenshotModal" onclick="showScreenshot('{{ log.screenshot }}')">
+                                        View Screenshot
+                                    </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">No logs found matching the criteria.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">&laquo; First</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Previous</a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Next</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Last &raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Screenshot Modal -->
+<div class="modal fade" id="screenshotModal" tabindex="-1" aria-labelledby="screenshotModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="screenshotModalLabel">Screenshot</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <img id="screenshotImage" src="" class="img-fluid" alt="Screenshot">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize any Bootstrap components
+    var screenshotModal = new bootstrap.Modal(document.getElementById('screenshotModal'));
+    
+    // Handle checkbox form submission
+    document.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            if (!this.checked) {
+                this.value = '';
+            }
+            document.getElementById('filterForm').submit();
+        });
+    });
+
+    // Handle log type changes
+    document.getElementById('log_type').addEventListener('change', function() {
+        document.getElementById('filterForm').submit();
+    });
+
+    // Handle date input changes
+    document.getElementById('date_from').addEventListener('change', function() {
+        document.getElementById('filterForm').submit();
+    });
+
+    document.getElementById('date_to').addEventListener('change', function() {
+        document.getElementById('filterForm').submit();
+    });
+});
+
+function showScreenshot(path) {
+    var imgElement = document.getElementById('screenshotImage');
+    imgElement.src = path.startsWith('/') ? path : '/media/' + path;
+}
+
+function clearKeyword() {
+    document.getElementById('keyword').value = '';
+    document.getElementById('filterForm').submit();
+}
+
+function resetFilters() {
+    window.location.href = '{% url "logs_explorer" %}';
+}
+
+function exportToCSV() {
+    // Get current URL parameters
+    const params = new URLSearchParams(window.location.search);
+    // Add export parameter
+    params.append('export', 'csv');
+    // Redirect to the same page with export parameter
+    window.location.href = `${window.location.pathname}?${params.toString()}`;
+}
+</script>
+{% endblock %} 
