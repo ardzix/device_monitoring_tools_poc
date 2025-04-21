@@ -1,210 +1,226 @@
 {% extends "dashboard/base.html" %}
 {% load static %}
 
+{% block title %}Logs Explorer{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <!-- Filter Panel -->
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Logs Explorer</h5>
-            <button class="btn btn-primary" onclick="exportToCSV()">
-                <i class="fas fa-download"></i> Export CSV
-            </button>
-        </div>
-        <div class="card-body">
-            <form id="filterForm" method="get" class="row g-3">
-                <div class="col-md-3">
-                    <label for="log_type" class="form-label">Log Type</label>
-                    <select name="log_type" id="log_type" class="form-select">
-                        <option value="">All Types</option>
-                        <option value="activity" {% if log_type == 'activity' %}selected{% endif %}>Activity</option>
-                        <option value="app_usage" {% if log_type == 'app_usage' %}selected{% endif %}>App Usage</option>
-                        <option value="website" {% if log_type == 'website' %}selected{% endif %}>Website Visits</option>
-                        <option value="file" {% if log_type == 'file' %}selected{% endif %}>File Access</option>
-                        <option value="usb" {% if log_type == 'usb' %}selected{% endif %}>USB Devices</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label for="date_from" class="form-label">From Date</label>
-                    <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="date_to" class="form-label">To Date</label>
-                    <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
-                </div>
-                <div class="col-md-3">
-                    <label for="keyword" class="form-label">Keyword Search</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="keyword" name="keyword" value="{{ keyword }}">
-                        <button class="btn btn-outline-secondary" type="button" onclick="clearKeyword()">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check mt-4">
-                        <input class="form-check-input" type="checkbox" id="flagged_only" name="flagged_only" value="true" {% if flagged_only %}checked{% endif %}>
-                        <label class="form-check-label" for="flagged_only">
-                            Flagged Items Only
-                        </label>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-check mt-4">
-                        <input class="form-check-input" type="checkbox" id="has_screenshot" name="has_screenshot" value="true" {% if has_screenshot %}checked{% endif %}>
-                        <label class="form-check-label" for="has_screenshot">
-                            With Screenshots Only
-                        </label>
-                    </div>
-                </div>
-                <div class="col-12">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-search"></i> Search
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="resetFilters()">
-                        <i class="fas fa-undo"></i> Reset
-                    </button>
-                </div>
-            </form>
-        </div>
+<!-- Filter Panel -->
+<div class="bg-white rounded-lg shadow-sm mb-6">
+    <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+        <h5 class="text-lg font-semibold">Logs Explorer</h5>
+        <button class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors" onclick="exportToCSV()">
+            <i class="fas fa-download mr-2"></i> Export CSV
+        </button>
     </div>
+    <div class="p-6">
+        <form id="filterForm" method="get">
+            <div class="space-y-6">
+                <!-- Filter Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Log Type -->
+                    <div>
+                        <label for="log_type" class="block text-sm font-medium text-gray-700 mb-2">Log Type</label>
+                        <div class="relative">
+                            <select name="log_type" id="log_type" class="appearance-none w-full bg-white border border-gray-300 rounded-lg py-2 pl-3 pr-10 text-sm leading-5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                                <option value="">All Types</option>
+                                {% for value, label in log_types %}
+                                    <option value="{{ value }}" {% if log_type == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                                <i class="fas fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
 
-    <!-- Logs Table -->
-    <div class="card">
-        <div class="card-header">
-            <h5 class="mb-0">Monitoring Logs</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>
-                                <a href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}sort=timestamp{% if sort == 'timestamp' and order == 'asc' %}&order=desc{% else %}&order=asc{% endif %}">
-                                    Timestamp
-                                    {% if sort == 'timestamp' %}
-                                        <i class="fas fa-sort-{% if order == 'asc' %}up{% else %}down{% endif %}"></i>
-                                    {% else %}
-                                        <i class="fas fa-sort"></i>
-                                    {% endif %}
-                                </a>
-                            </th>
-                            <th>Type</th>
-                            <th>Details</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for log in page_obj %}
-                        <tr class="{% if log.is_flagged %}table-warning{% endif %}">
-                            <td>{{ log.timestamp }}</td>
-                            <td>
-                                {% if log.type == 'activity' %}
-                                    <span class="badge bg-primary">Activity</span>
-                                {% elif log.type == 'app_usage' %}
-                                    <span class="badge bg-success">App Usage</span>
-                                {% elif log.type == 'website' %}
-                                    <span class="badge bg-info">Website</span>
-                                {% elif log.type == 'file' %}
-                                    <span class="badge bg-warning">File</span>
-                                {% elif log.type == 'usb' %}
-                                    <span class="badge bg-danger">USB</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if log.type == 'activity' %}
-                                    <strong>Window:</strong> {{ log.window_title }}<br>
-                                    {% if log.keywords %}
-                                        <strong>Keywords:</strong> {{ log.keywords|join:", " }}<br>
-                                    {% endif %}
-                                    {% if log.analysis %}
-                                        <strong>Analysis:</strong> {{ log.analysis }}
-                                    {% endif %}
-                                {% elif log.type == 'app_usage' %}
-                                    <strong>App:</strong> {{ log.app_name }}<br>
-                                    <strong>Window:</strong> {{ log.window_title }}<br>
-                                    <strong>Duration:</strong> {{ log.duration }}s
-                                {% elif log.type == 'website' %}
-                                    <strong>URL:</strong> {{ log.url }}<br>
-                                    <strong>Title:</strong> {{ log.title }}<br>
-                                    <strong>Duration:</strong> {{ log.duration }}s
-                                {% elif log.type == 'file' %}
-                                    <strong>Path:</strong> {{ log.file_path }}<br>
-                                    <strong>Operation:</strong> {{ log.operation }}<br>
-                                    <strong>Process:</strong> {{ log.process_name }}
-                                {% elif log.type == 'usb' %}
-                                    <strong>Device:</strong> {{ log.device_name }}<br>
-                                    <strong>Action:</strong> {{ log.action }}
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if log.type == 'activity' and log.screenshot %}
-                                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#screenshotModal" onclick="showScreenshot('{{ log.screenshot }}')">
-                                        View Screenshot
-                                    </button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center">No logs found matching the criteria.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                    <!-- From Date -->
+                    <div>
+                        <label for="date_from" class="block text-sm font-medium text-gray-700 mb-2">From Date</label>
+                        <input type="date" class="appearance-none w-full bg-white border border-gray-300 rounded-lg py-2 px-3 text-sm leading-5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                               id="date_from" name="date_from" value="{{ date_from }}">
+                    </div>
+
+                    <!-- To Date -->
+                    <div>
+                        <label for="date_to" class="block text-sm font-medium text-gray-700 mb-2">To Date</label>
+                        <input type="date" class="appearance-none w-full bg-white border border-gray-300 rounded-lg py-2 px-3 text-sm leading-5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                               id="date_to" name="date_to" value="{{ date_to }}">
+                    </div>
+
+                    <!-- Keyword Search -->
+                    <div>
+                        <label for="keyword" class="block text-sm font-medium text-gray-700 mb-2">Keyword Search</label>
+                        <div class="flex">
+                            <input type="text" class="appearance-none flex-1 bg-white border border-gray-300 rounded-l-lg py-2 px-3 text-sm leading-5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                                   id="keyword" name="keyword" value="{{ keyword }}" placeholder="Search...">
+                            <button type="button" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-l-0 border-gray-300 rounded-r-lg" 
+                                    onclick="clearKeyword()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="flex items-center space-x-6 border-t border-gray-200 pt-4">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="rounded border-gray-300 text-blue-500 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                               id="flagged_only" name="flagged_only" value="true" {% if flagged_only %}checked{% endif %}>
+                        <span class="ml-2 text-sm text-gray-700">Flagged Items Only</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="rounded border-gray-300 text-blue-500 shadow-sm focus:border-blue-500 focus:ring-blue-500" 
+                               id="has_screenshot" name="has_screenshot" value="true" {% if has_screenshot %}checked{% endif %}>
+                        <span class="ml-2 text-sm text-gray-700">With Screenshots Only</span>
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center space-x-3 pt-4">
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors">
+                        <i class="fas fa-search mr-2"></i> Search
+                    </button>
+                    <button type="button" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors" onclick="resetFilters()">
+                        <i class="fas fa-undo mr-2"></i> Reset
+                    </button>
+                </div>
             </div>
-        </div>
+
+            <!-- Hidden fields for sorting -->
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <input type="hidden" name="order" value="{{ order }}">
+        </form>
     </div>
-
-    <!-- Pagination -->
-    {% if is_paginated %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">&laquo; First</a>
-            </li>
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Previous</a>
-            </li>
-            {% endif %}
-
-            {% for num in page_obj.paginator.page_range %}
-                {% if page_obj.number == num %}
-                    <li class="page-item active">
-                        <span class="page-link">{{ num }}</span>
-                    </li>
-                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">{{ num }}</a>
-                    </li>
-                {% endif %}
-            {% endfor %}
-
-            {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Next</a>
-            </li>
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Last &raquo;</a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
 </div>
 
-<!-- Screenshot Modal -->
-<div class="modal fade" id="screenshotModal" tabindex="-1" aria-labelledby="screenshotModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="screenshotModalLabel">Screenshot</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Logs Table -->
+<div class="bg-white rounded-lg shadow-sm">
+    <div class="p-4 border-b border-gray-200">
+        <h5 class="text-lg font-semibold">Monitoring Logs</h5>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <a href="#" onclick="updateSort('timestamp')" class="flex items-center space-x-1 hover:text-gray-700">
+                            <span>Timestamp</span>
+                            {% if sort == 'timestamp' or sort == '-timestamp' %}
+                                <i class="fas fa-sort-{% if sort == 'timestamp' %}up{% else %}down{% endif %}"></i>
+                            {% else %}
+                                <i class="fas fa-sort"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <a href="#" onclick="updateSort('device_identifier')" class="flex items-center space-x-1 hover:text-gray-700">
+                            <span>Device</span>
+                            {% if sort == 'device_identifier' or sort == '-device_identifier' %}
+                                <i class="fas fa-sort-{% if sort == 'device_identifier' %}up{% else %}down{% endif %}"></i>
+                            {% else %}
+                                <i class="fas fa-sort"></i>
+                            {% endif %}
+                        </a>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="logsTableBody">
+                {% for log in page_obj %}
+                <tr class="{% if log.activitylog.is_flagged %}bg-yellow-50{% endif %} hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ log.device_identifier }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        {% for value, label in log_types %}
+                            {% if log.log_type == value %}
+                                <span class="px-2 py-1 text-xs font-medium rounded-full
+                                    {% if value == 'activity' %}bg-blue-100 text-blue-800
+                                    {% elif value == 'app_usage' %}bg-green-100 text-green-800
+                                    {% elif value == 'website_visit' %}bg-purple-100 text-purple-800
+                                    {% elif value == 'file_access' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ label }}
+                                </span>
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-900">{{ log.description }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <button type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs transition-colors" 
+                                onclick="showLogDetails({{ log.id }})">
+                            <i class="fas fa-eye mr-1"></i> Details
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">No logs found matching the criteria.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="mt-6 flex justify-center">
+    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+        {% if page_obj.has_previous %}
+        <a href="#" onclick="goToPage(1)" 
+           class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+            <span class="sr-only">First</span>
+            <i class="fas fa-angle-double-left"></i>
+        </a>
+        <a href="#" onclick="goToPage({{ page_obj.previous_page_number }})" 
+           class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+            <span class="sr-only">Previous</span>
+            <i class="fas fa-angle-left"></i>
+        </a>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">
+                    {{ num }}
+                </span>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <a href="#" onclick="goToPage({{ num }})" 
+                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    {{ num }}
+                </a>
+            {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <a href="#" onclick="goToPage({{ page_obj.next_page_number }})" 
+           class="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+            <span class="sr-only">Next</span>
+            <i class="fas fa-angle-right"></i>
+        </a>
+        <a href="#" onclick="goToPage({{ page_obj.paginator.num_pages }})" 
+           class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+            <span class="sr-only">Last</span>
+            <i class="fas fa-angle-double-right"></i>
+        </a>
+        {% endif %}
+    </nav>
+</div>
+{% endif %}
+
+<!-- Log Details Modal -->
+<div class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" id="logDetailsModal">
+    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">Log Details</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500" onclick="closeLogDetails()">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <div class="modal-body">
-                <img id="screenshotImage" src="" class="img-fluid" alt="Screenshot">
-            </div>
+            <div id="logDetailsContent"></div>
         </div>
     </div>
 </div>
@@ -212,38 +228,242 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize any Bootstrap components
-    var screenshotModal = new bootstrap.Modal(document.getElementById('screenshotModal'));
+// Store logs data for details modal
+const logsData = {{ logs|safe }};
+
+function showLogDetails(logId) {
+    const log = logsData.find(l => l.id === logId);
+    if (!log) return;
+
+    let content = `
+        <div class="space-y-6">
+            <div>
+                <h6 class="text-sm font-semibold text-gray-500 uppercase mb-3">Basic Information</h6>
+                <div class="bg-gray-50 rounded-lg p-4 space-y-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-xs text-gray-500">Timestamp</span>
+                            <span class="text-sm">${log.timestamp}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Device</span>
+                            <span class="text-sm">${log.device_identifier}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Type</span>
+                            <span class="text-sm">${log.log_type}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Description</span>
+                            <span class="text-sm">${log.description}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    `;
+
+    if (log.details) {
+        content += '<div><h6 class="text-sm font-semibold text-gray-500 uppercase mb-3">Details</h6>';
+        
+        if (log.log_type === 'activity') {
+            content += `
+                <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-xs text-gray-500">Window Title</span>
+                            <span class="text-sm">${log.details.window_title}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Status</span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${log.details.is_flagged ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}">
+                                ${log.details.is_flagged ? 'Flagged' : 'Normal'}
+                            </span>
+                        </div>
+                    </div>
+                    ${log.details.analysis ? `
+                        <div>
+                            <span class="block text-xs text-gray-500">Analysis</span>
+                            <span class="text-sm">${log.details.analysis}</span>
+                        </div>
+                    ` : ''}
+                    ${log.details.keywords && log.details.keywords.length > 0 ? `
+                        <div>
+                            <span class="block text-xs text-gray-500 mb-2">Keywords</span>
+                            <div class="flex flex-wrap gap-2">
+                                ${log.details.keywords.map(keyword => `
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        ${keyword}
+                                    </span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${log.details.screenshot_url ? `
+                        <div>
+                            <span class="block text-xs text-gray-500 mb-2">Screenshot</span>
+                            <img src="${log.details.screenshot_url}" class="rounded-lg shadow-sm" alt="Screenshot">
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        } else if (log.log_type === 'app_usage') {
+            content += `
+                <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-xs text-gray-500">App Name</span>
+                            <span class="text-sm">${log.details.app_name}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Window Title</span>
+                            <span class="text-sm">${log.details.window_title}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Duration</span>
+                            <span class="text-sm">${formatDuration(log.details.duration)}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Status</span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${log.details.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                ${log.details.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (log.log_type === 'website_visit') {
+            content += `
+                <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                    <div>
+                        <span class="block text-xs text-gray-500">URL</span>
+                        <a href="${log.details.url}" target="_blank" class="text-sm text-blue-600 hover:text-blue-800 break-all">
+                            ${log.details.url}
+                        </a>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-xs text-gray-500">Title</span>
+                            <span class="text-sm">${log.details.title}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Duration</span>
+                            <span class="text-sm">${formatDuration(log.details.duration)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (log.log_type === 'file_access') {
+            content += `
+                <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                    <div>
+                        <span class="block text-xs text-gray-500">File Path</span>
+                        <span class="text-sm break-all">${log.details.file_path}</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-xs text-gray-500">Operation</span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getOperationClass(log.details.operation)}">
+                                ${log.details.operation}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Process</span>
+                            <span class="text-sm">${log.details.process_name}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (log.log_type === 'usb_device') {
+            content += `
+                <div class="bg-gray-50 rounded-lg p-4 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <span class="block text-xs text-gray-500">Device Name</span>
+                            <span class="text-sm">${log.details.device_name}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Action</span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${log.details.action === 'connected' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                ${log.details.action}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Vendor ID</span>
+                            <span class="text-sm">${log.details.vendor_id}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs text-gray-500">Product ID</span>
+                            <span class="text-sm">${log.details.product_id}</span>
+                        </div>
+                        ${log.details.serial_number ? `
+                            <div>
+                                <span class="block text-xs text-gray-500">Serial Number</span>
+                                <span class="text-sm">${log.details.serial_number}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        content += '</div>';
+    }
+
+    content += '</div>';
+
+    document.getElementById('logDetailsContent').innerHTML = content;
+    document.getElementById('logDetailsModal').classList.remove('hidden');
+    document.getElementById('logDetailsModal').classList.add('flex');
+}
+
+function closeLogDetails() {
+    document.getElementById('logDetailsModal').classList.remove('flex');
+    document.getElementById('logDetailsModal').classList.add('hidden');
+}
+
+function formatDuration(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes > 0) {
+        return `${minutes}m ${remainingSeconds}s`;
+    }
+    return `${remainingSeconds}s`;
+}
+
+function getOperationClass(operation) {
+    const classes = {
+        'create': 'bg-green-100 text-green-800',
+        'modify': 'bg-yellow-100 text-yellow-800',
+        'delete': 'bg-red-100 text-red-800',
+        'read': 'bg-blue-100 text-blue-800'
+    };
+    return classes[operation.toLowerCase()] || 'bg-gray-100 text-gray-800';
+}
+
+function updateSort(field) {
+    const currentSort = document.querySelector('input[name="sort"]').value;
+    const currentOrder = document.querySelector('input[name="order"]').value;
     
-    // Handle checkbox form submission
-    document.querySelectorAll('input[type="checkbox"]').forEach(function(checkbox) {
-        checkbox.addEventListener('change', function() {
-            if (!this.checked) {
-                this.value = '';
-            }
-            document.getElementById('filterForm').submit();
-        });
-    });
+    let newSort = field;
+    let newOrder = 'asc';
+    
+    if (currentSort === field) {
+        newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+    }
+    
+    document.querySelector('input[name="sort"]').value = newSort;
+    document.querySelector('input[name="order"]').value = newOrder;
+    document.getElementById('filterForm').submit();
+}
 
-    // Handle log type changes
-    document.getElementById('log_type').addEventListener('change', function() {
-        document.getElementById('filterForm').submit();
-    });
-
-    // Handle date input changes
-    document.getElementById('date_from').addEventListener('change', function() {
-        document.getElementById('filterForm').submit();
-    });
-
-    document.getElementById('date_to').addEventListener('change', function() {
-        document.getElementById('filterForm').submit();
-    });
-});
-
-function showScreenshot(path) {
-    var imgElement = document.getElementById('screenshotImage');
-    imgElement.src = path.startsWith('/') ? path : '/media/' + path;
+function goToPage(page) {
+    const form = document.getElementById('filterForm');
+    const pageInput = document.createElement('input');
+    pageInput.type = 'hidden';
+    pageInput.name = 'page';
+    pageInput.value = page;
+    form.appendChild(pageInput);
+    form.submit();
 }
 
 function clearKeyword() {
@@ -256,12 +476,28 @@ function resetFilters() {
 }
 
 function exportToCSV() {
-    // Get current URL parameters
     const params = new URLSearchParams(window.location.search);
-    // Add export parameter
     params.append('export', 'csv');
-    // Redirect to the same page with export parameter
     window.location.href = `${window.location.pathname}?${params.toString()}`;
 }
+
+// Close modal when clicking outside
+document.getElementById('logDetailsModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeLogDetails();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !document.getElementById('logDetailsModal').classList.contains('hidden')) {
+        closeLogDetails();
+    }
+});
+
+// Auto-submit form on filter changes
+document.querySelectorAll('#filterForm select, #filterForm input[type="checkbox"]').forEach(element => {
+    element.addEventListener('change', () => document.getElementById('filterForm').submit());
+});
 </script>
 {% endblock %} 

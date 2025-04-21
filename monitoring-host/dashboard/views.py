@@ -24,6 +24,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 
 logger = logging.getLogger(__name__)
 
@@ -418,95 +419,151 @@ def logs_explorer_view(request):
     date_to = request.GET.get('date_to', '')
     keyword = request.GET.get('keyword', '')
     flagged_only = request.GET.get('flagged_only', '') == 'true'
-    
-    # Base queryset for each log type
-    activity_logs = ActivityLog.objects.all()
-    app_usage_logs = AppUsageLog.objects.all()
-    website_logs = WebsiteVisitLog.objects.all()
-    file_logs = FileAccessLog.objects.all()
-    usb_logs = USBDeviceLog.objects.all()
-    
+    has_screenshot = request.GET.get('has_screenshot', '') == 'true'
+    sort_by = request.GET.get('sort', '-timestamp')
+    order = request.GET.get('order', 'desc')
+    page = request.GET.get('page', 1)
+    per_page = 50
+
+    # Base queryset with select_related for better performance
+    queryset = BaseLog.objects.select_related(
+        'activitylog',
+        'appusagelog',
+        'websitevisitlog',
+        'fileaccesslog',
+        'usbdevicelog'
+    )
+
     # Apply date filters if provided
     if date_from:
         try:
             date_from = datetime.strptime(date_from, '%Y-%m-%d')
-            activity_logs = activity_logs.filter(timestamp__date__gte=date_from)
-            app_usage_logs = app_usage_logs.filter(timestamp__date__gte=date_from)
-            website_logs = website_logs.filter(timestamp__date__gte=date_from)
-            file_logs = file_logs.filter(timestamp__date__gte=date_from)
-            usb_logs = usb_logs.filter(timestamp__date__gte=date_from)
+            queryset = queryset.filter(timestamp__date__gte=date_from)
         except ValueError:
             pass
     
     if date_to:
         try:
             date_to = datetime.strptime(date_to, '%Y-%m-%d')
-            activity_logs = activity_logs.filter(timestamp__date__lte=date_to)
-            app_usage_logs = app_usage_logs.filter(timestamp__date__lte=date_to)
-            website_logs = website_logs.filter(timestamp__date__lte=date_to)
-            file_logs = file_logs.filter(timestamp__date__lte=date_to)
-            usb_logs = usb_logs.filter(timestamp__date__lte=date_to)
+            queryset = queryset.filter(timestamp__date__lte=date_to)
         except ValueError:
             pass
-    
-    # Apply keyword filter if provided
+
+    # Apply log type filter
+    if log_type:
+        queryset = queryset.filter(log_type=log_type)
+
+    # Apply keyword filter
     if keyword:
-        activity_logs = activity_logs.filter(
-            Q(window_title__icontains=keyword) |
-            Q(keywords__icontains=keyword) |
-            Q(analysis__icontains=keyword)
+        queryset = queryset.filter(
+            Q(description__icontains=keyword) |
+            Q(device_identifier__icontains=keyword)
         )
-        app_usage_logs = app_usage_logs.filter(
-            Q(app_name__icontains=keyword) |
-            Q(window_title__icontains=keyword)
-        )
-        website_logs = website_logs.filter(
-            Q(url__icontains=keyword) |
-            Q(title__icontains=keyword)
-        )
-        file_logs = file_logs.filter(
-            Q(file_path__icontains=keyword) |
-            Q(process_name__icontains=keyword)
-        )
-        usb_logs = usb_logs.filter(
-            Q(device_name__icontains=keyword) |
-            Q(vendor_id__icontains=keyword) |
-            Q(product_id__icontains=keyword)
-        )
-    
-    # Apply flagged filter if selected
+
+    # Apply flagged filter (only for activity logs)
     if flagged_only:
-        activity_logs = activity_logs.filter(is_flagged=True)
-    
-    # Filter by log type if selected
-    if log_type == 'activity':
-        logs = activity_logs.order_by('-timestamp')
-    elif log_type == 'app_usage':
-        logs = app_usage_logs.order_by('-timestamp')
-    elif log_type == 'website':
-        logs = website_logs.order_by('-timestamp')
-    elif log_type == 'file':
-        logs = file_logs.order_by('-timestamp')
-    elif log_type == 'usb':
-        logs = usb_logs.order_by('-timestamp')
-    else:
-        # Combine all logs and sort by timestamp
-        logs = sorted(
-            list(activity_logs) +
-            list(app_usage_logs) +
-            list(website_logs) +
-            list(file_logs) +
-            list(usb_logs),
-            key=lambda x: x.timestamp,
-            reverse=True
+        queryset = queryset.filter(
+            Q(log_type='activity', activitylog__is_flagged=True)
         )
-    
+
+    # Apply screenshot filter (only for activity logs)
+    if has_screenshot:
+        queryset = queryset.filter(
+            Q(log_type='activity', activitylog__screenshot__isnull=False)
+        ).exclude(
+            Q(log_type='activity', activitylog__screenshot='')
+        )
+
+    # Apply sorting
+    if sort_by.lstrip('-') in ['timestamp', 'device_identifier']:
+        if order == 'asc' and sort_by.startswith('-'):
+            sort_by = sort_by.lstrip('-')
+        elif order == 'desc' and not sort_by.startswith('-'):
+            sort_by = f'-{sort_by}'
+        queryset = queryset.order_by(sort_by)
+
+    # Pagination
+    paginator = Paginator(queryset, per_page)
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    # Get log details for the current page only
+    log_details = []
+    for log in page_obj:
+        detail = {
+            'id': log.id,
+            'timestamp': log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            'device_identifier': log.device_identifier,
+            'log_type': log.log_type,
+            'description': log.description,
+            'details': None
+        }
+
+        # Get specific log details based on type
+        try:
+            if log.log_type == 'activity':
+                activity = log.activitylog
+                detail['details'] = {
+                    'window_title': activity.window_title,
+                    'is_flagged': activity.is_flagged,
+                    'has_screenshot': bool(activity.screenshot),
+                    'screenshot_url': activity.screenshot.url if activity.screenshot else None,
+                    'analysis': activity.analysis,
+                    'keywords': activity.keywords or []
+                }
+            elif log.log_type == 'app_usage':
+                app = log.appusagelog
+                detail['details'] = {
+                    'app_name': app.app_name,
+                    'window_title': app.window_title,
+                    'duration': app.duration,
+                    'is_active': app.is_active
+                }
+            elif log.log_type == 'website_visit':
+                website = log.websitevisitlog
+                detail['details'] = {
+                    'url': website.url,
+                    'title': website.title,
+                    'duration': website.duration
+                }
+            elif log.log_type == 'file_access':
+                file = log.fileaccesslog
+                detail['details'] = {
+                    'file_path': file.file_path,
+                    'operation': file.operation,
+                    'process_name': file.process_name
+                }
+            elif log.log_type == 'usb_device':
+                usb = log.usbdevicelog
+                detail['details'] = {
+                    'device_name': usb.device_name,
+                    'vendor_id': usb.vendor_id,
+                    'product_id': usb.product_id,
+                    'serial_number': usb.serial_number,
+                    'action': usb.action
+                }
+        except (ActivityLog.DoesNotExist, AppUsageLog.DoesNotExist,
+                WebsiteVisitLog.DoesNotExist, FileAccessLog.DoesNotExist,
+                USBDeviceLog.DoesNotExist):
+            pass
+
+        log_details.append(detail)
+
     context = {
-        'logs': logs,
+        'logs': json.dumps(log_details, default=str),  # Serialize to JSON for JavaScript
+        'page_obj': page_obj,
         'log_type': log_type,
-        'date_from': date_from,
-        'date_to': date_to,
+        'date_from': date_from.strftime('%Y-%m-%d') if isinstance(date_from, datetime) else '',
+        'date_to': date_to.strftime('%Y-%m-%d') if isinstance(date_to, datetime) else '',
         'keyword': keyword,
-        'flagged_only': flagged_only
+        'flagged_only': flagged_only,
+        'has_screenshot': has_screenshot,
+        'sort': sort_by,
+        'order': order,
+        'log_types': BaseLog.LOG_TYPES
     }
     return render(request, 'dashboard/logs_explorer.html', context)

@@ -5,10 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Employee Monitoring Dashboard{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Alpine.js -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
     <style>
         [x-cloak] { display: none !important; }
         .smooth-transition { transition: all 0.3s ease-in-out; }
@@ -29,12 +35,12 @@
                 </div>
                 <nav class="mt-8">
                     <a href="{% url 'dashboard' %}" 
-                       class="flex items-center p-2 rounded-lg {% if request.path == '/dashboard/' %}bg-gray-700{% endif %} hover:bg-gray-700">
+                       class="flex items-center p-2 rounded-lg {% if request.resolver_match.url_name == 'dashboard' %}bg-gray-700{% endif %} hover:bg-gray-700">
                         <i class="fas fa-chart-line w-6"></i>
                         <span class="ml-3">Dashboard</span>
                     </a>
                     <a href="{% url 'logs_explorer' %}" 
-                       class="flex items-center p-2 rounded-lg {% if request.path == '/dashboard/logs/' %}bg-gray-700{% endif %} hover:bg-gray-700 mt-2">
+                       class="flex items-center p-2 rounded-lg {% if request.resolver_match.url_name == 'logs_explorer' %}bg-gray-700{% endif %} hover:bg-gray-700 mt-2">
                         <i class="fas fa-search w-6"></i>
                         <span class="ml-3">Logs Explorer</span>
                     </a>
@@ -49,27 +55,8 @@
 
         <!-- Main Content -->
         <main class="flex-1 ml-0 lg:ml-64 p-6">
-            <!-- Top Bar -->
-            <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-xl font-semibold text-gray-800">{% block page_title %}Dashboard{% endblock %}</h2>
-                    <div class="flex items-center space-x-4">
-                        <button class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 smooth-transition">
-                            <i class="fas fa-download mr-2"></i>Export CSV
-                        </button>
-                        <div class="relative">
-                            <input type="text" placeholder="Search..." 
-                                   class="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <i class="fas fa-search absolute right-3 top-2 text-gray-400"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Content -->
-            <div class="space-y-6">
-                {% block content %}{% endblock %}
-            </div>
+            {% block content %}{% endblock %}
         </main>
     </div>
 
