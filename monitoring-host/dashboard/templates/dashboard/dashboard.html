@@ -5,102 +5,163 @@
 {% block content %}
 <!-- Stats Overview -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- Total Devices -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">Monitored Devices</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ total_devices }}</h3>
+                <p class="text-sm text-blue-500">Active</p>
+            </div>
+            <div class="bg-blue-100 p-3 rounded-full">
+                <i class="fas fa-laptop text-blue-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
     <!-- Total Activity Logs -->
     <div class="bg-white rounded-lg shadow-sm p-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-sm text-gray-500">Total Activity Logs</p>
+                <p class="text-sm text-gray-500">Total Activities</p>
                 <h3 class="text-2xl font-bold text-gray-800">{{ total_activity_logs }}</h3>
-                <p class="text-sm text-green-500">Today</p>
+                <p class="text-sm text-green-500">Monitored</p>
             </div>
-            <div class="bg-blue-100 p-3 rounded-full">
-                <i class="fas fa-chart-line text-blue-500 text-xl"></i>
-            </div>
-        </div>
-    </div>
-
-    <!-- Flagged Incidents -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm text-gray-500">Flagged Incidents</p>
-                <h3 class="text-2xl font-bold text-gray-800">{{ flagged_incidents }}</h3>
-                <p class="text-sm text-red-500">High Risk</p>
-            </div>
-            <div class="bg-red-100 p-3 rounded-full">
-                <i class="fas fa-exclamation-triangle text-red-500 text-xl"></i>
+            <div class="bg-green-100 p-3 rounded-full">
+                <i class="fas fa-chart-line text-green-500 text-xl"></i>
             </div>
         </div>
     </div>
 
-    <!-- Top Keywords -->
+    <!-- USB Events -->
     <div class="bg-white rounded-lg shadow-sm p-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-sm text-gray-500">Top Keywords</p>
-                <h3 class="text-2xl font-bold text-gray-800">{{ top_keywords|length }}</h3>
-                <p class="text-sm text-yellow-500">Flagged</p>
-            </div>
-            <div class="bg-yellow-100 p-3 rounded-full">
-                <i class="fas fa-key text-yellow-500 text-xl"></i>
-            </div>
-        </div>
-    </div>
-
-    <!-- USB Devices -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm text-gray-500">USB Devices</p>
-                <h3 class="text-2xl font-bold text-gray-800">{{ usb_devices }}</h3>
-                <p class="text-sm text-purple-500">Connected</p>
+                <p class="text-sm text-gray-500">USB Events</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ total_usb_events }}</h3>
+                <p class="text-sm text-purple-500">Detected</p>
             </div>
             <div class="bg-purple-100 p-3 rounded-full">
                 <i class="fas fa-usb text-purple-500 text-xl"></i>
             </div>
         </div>
     </div>
+
+    <!-- File Operations -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-500">File Operations</p>
+                <h3 class="text-2xl font-bold text-gray-800">{{ total_file_access }}</h3>
+                <p class="text-sm text-yellow-500">Tracked</p>
+            </div>
+            <div class="bg-yellow-100 p-3 rounded-full">
+                <i class="fas fa-file text-yellow-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
 </div>
 
-<!-- Charts and Data -->
+<!-- Device Activity Overview -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-    <!-- Daily Flagged Trend -->
+    <!-- Device Statistics -->
     <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Daily Flagged Trend</h3>
-        <canvas id="flaggedTrendChart" height="300"></canvas>
+        <h3 class="text-lg font-semibold mb-4">Device Activity Overview</h3>
+        <div class="overflow-y-auto max-h-[300px]">
+            <table class="min-w-full">
+                <thead class="bg-white sticky top-0">
+                    <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th class="px-4 py-2">Device ID</th>
+                        <th class="px-4 py-2">Activities</th>
+                        <th class="px-4 py-2">Flagged</th>
+                        <th class="px-4 py-2">Last Seen</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for device in device_stats %}
+                    <tr class="text-sm">
+                        <td class="px-4 py-2">{{ device.device_identifier }}</td>
+                        <td class="px-4 py-2">
+                            <div class="flex items-center space-x-1">
+                                <span class="text-blue-500">{{ device.activity_count }}</span>
+                                <span class="text-xs text-gray-500">activities</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-2">
+                            <span class="px-2 py-1 text-xs {% if device.flagged_count > 0 %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %} rounded-full">
+                                {{ device.flagged_count }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2 text-gray-500">{{ device.last_seen|timesince }} ago</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 
-    <!-- Risk Level Distribution -->
+    <!-- Activity Hours -->
     <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Risk Level Distribution</h3>
-        <canvas id="riskLevelChart" height="300"></canvas>
+        <h3 class="text-lg font-semibold mb-4">24-Hour Activity Distribution</h3>
+        <div class="h-[300px]">
+            <canvas id="hourlyActivityChart" height="200"></canvas>
+        </div>
     </div>
 </div>
 
-<!-- Top Lists -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-    <!-- Top Websites -->
+<!-- Recent Screenshots and Keywords -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <!-- Recent Screenshots -->
     <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Top Websites</h3>
-        <div class="space-y-4">
-            {% for website in top_websites %}
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-globe text-blue-500"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm font-medium">{{ website.title }}</p>
-                        <p class="text-xs text-gray-500">{{ website.url }}</p>
+        <h3 class="text-lg font-semibold mb-4">Recent Screenshots</h3>
+        <div class="grid grid-cols-2 gap-4">
+            {% for screenshot in recent_screenshots %}
+            <div class="relative group cursor-pointer" 
+                 @click="openModal('Screenshot Details', 
+                 `<div class=\'space-y-2\'>
+                     <p><strong>Time:</strong> {{ screenshot.timestamp|date:'Y-m-d H:i:s' }}</p>
+                     <p><strong>Window:</strong> {{ screenshot.window_title }}</p>
+                     <p><strong>Device:</strong> {{ screenshot.device_identifier }}</p>
+                     <p><strong>Analysis:</strong> {{ screenshot.analysis }}</p>
+                     <p><strong>Keywords:</strong> {{ screenshot.keywords|join:', ' }}</p>
+                     <img src=\'{{ screenshot.url }}\' class=\'mt-4 w-full\' alt=\'Screenshot\'/>
+                 </div>`)">
+                <img src="{{ screenshot.url }}" alt="Screenshot" class="w-full h-32 object-cover rounded-lg">
+                <div class="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div class="text-white text-center p-2">
+                        <p class="text-sm font-semibold">{{ screenshot.window_title|truncatechars:30 }}</p>
+                        {% if screenshot.is_flagged %}
+                        <span class="inline-block mt-1 px-2 py-1 bg-red-500 text-white text-xs rounded-full">Flagged</span>
+                        {% endif %}
                     </div>
                 </div>
-                <span class="text-sm text-gray-500">{{ website.duration }}m</span>
             </div>
             {% endfor %}
         </div>
     </div>
 
-    <!-- Top Apps -->
+    <!-- Top Keywords -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4">Top Keywords</h3>
+        <div class="space-y-4">
+            {% for keyword in top_keywords %}
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-key text-blue-500"></i>
+                    </div>
+                    <span class="ml-3 text-sm font-medium">{{ keyword.keyword }}</span>
+                </div>
+                <span class="text-sm text-gray-500">{{ keyword.count }}x</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Application and Website Usage -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <!-- Top Applications -->
     <div class="bg-white rounded-lg shadow-sm p-6">
         <h3 class="text-lg font-semibold mb-4">Top Applications</h3>
         <div class="space-y-4">
@@ -112,49 +173,90 @@
                     </div>
                     <div class="ml-3">
                         <p class="text-sm font-medium">{{ app.name }}</p>
-                        <p class="text-xs text-gray-500">{{ app.window_title }}</p>
+                        <p class="text-xs text-gray-500">Used {{ app.usage_count }} times</p>
                     </div>
                 </div>
-                <span class="text-sm text-gray-500">{{ app.duration }}m</span>
+                <div class="text-right">
+                    <p class="text-sm text-gray-900">{{ app.total_duration }}</p>
+                    <p class="text-xs text-green-500">Active: {{ app.active_time }}</p>
+                </div>
             </div>
             {% endfor %}
         </div>
     </div>
 
-    <!-- Top Files -->
+    <!-- Top Websites -->
     <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Top Accessed Files</h3>
+        <h3 class="text-lg font-semibold mb-4">Top Websites</h3>
         <div class="space-y-4">
-            {% for file in top_files %}
+            {% for site in top_websites %}
             <div class="flex items-center justify-between">
                 <div class="flex items-center">
-                    <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-file text-purple-500"></i>
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-globe text-blue-500"></i>
                     </div>
                     <div class="ml-3">
-                        <p class="text-sm font-medium">{{ file.name }}</p>
-                        <p class="text-xs text-gray-500">{{ file.path }}</p>
+                        <p class="text-sm font-medium">{{ site.title|truncatechars:30 }}</p>
+                        <p class="text-xs text-gray-500">{{ site.url|truncatechars:40 }}</p>
                     </div>
                 </div>
-                <span class="text-sm text-gray-500">{{ file.count }}x</span>
+                <div class="text-right">
+                    <p class="text-sm text-gray-900">{{ site.total_duration }}</p>
+                    <p class="text-xs text-blue-500">{{ site.visit_count }} visits</p>
+                </div>
             </div>
             {% endfor %}
         </div>
     </div>
 </div>
 
-<!-- Screenshot Carousel -->
-<div class="bg-white rounded-lg shadow-sm p-6 mt-6">
-    <h3 class="text-lg font-semibold mb-4">Recent Flagged Screenshots</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {% for screenshot in recent_screenshots %}
-        <div class="relative group cursor-pointer" @click="openModal('Screenshot Details', '{{ screenshot.details }}')">
-            <img src="{{ screenshot.url }}" alt="Screenshot" class="w-full h-48 object-cover rounded-lg">
-            <div class="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span class="text-white text-sm">Click to view details</span>
+<!-- File and USB Activity -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <!-- File Operations -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4">File Operations Summary</h3>
+        <div class="space-y-4">
+            {% for operation in file_operations %}
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 
+                        {% if operation.operation == 'create' %}bg-green-100
+                        {% elif operation.operation == 'modify' %}bg-yellow-100
+                        {% elif operation.operation == 'delete' %}bg-red-100
+                        {% else %}bg-blue-100{% endif %} 
+                        rounded-full flex items-center justify-center">
+                        <i class="fas fa-file text-
+                        {% if operation.operation == 'create' %}green
+                        {% elif operation.operation == 'modify' %}yellow
+                        {% elif operation.operation == 'delete' %}red
+                        {% else %}blue{% endif %}-500"></i>
+                    </div>
+                    <span class="ml-3 text-sm font-medium capitalize">{{ operation.operation }}</span>
+                </div>
+                <span class="text-sm text-gray-500">{{ operation.count }}x</span>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
+    </div>
+
+    <!-- USB Activity -->
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4">USB Activity Summary</h3>
+        <div class="space-y-4">
+            {% for event in usb_summary %}
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 
+                        {% if event.action == 'connected' %}bg-green-100{% else %}bg-red-100{% endif %} 
+                        rounded-full flex items-center justify-center">
+                        <i class="fas fa-usb text-{% if event.action == 'connected' %}green{% else %}red{% endif %}-500"></i>
+                    </div>
+                    <span class="ml-3 text-sm font-medium capitalize">{{ event.action }}</span>
+                </div>
+                <span class="text-sm text-gray-500">{{ event.count }}x</span>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -162,49 +264,41 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Daily Flagged Trend Chart
-    const flaggedTrendCtx = document.getElementById('flaggedTrendChart').getContext('2d');
-    new Chart(flaggedTrendCtx, {
-        type: 'line',
-        data: {
-            labels: {{ flagged_trend.labels|safe }},
-            datasets: [{
-                label: 'Flagged Incidents',
-                data: {{ flagged_trend.data|safe }},
-                borderColor: 'rgb(239, 68, 68)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'top',
-                }
-            }
-        }
-    });
+    // Activity Hours Chart
+    const hourlyActivityCtx = document.getElementById('hourlyActivityChart').getContext('2d');
+    const hours = Array.from({length: 24}, (_, i) => i);
+    const counts = Array(24).fill(0);
+    
+    // Fill in the actual counts
+    {% for hour_data in hourly_activity %}
+        counts[{{ hour_data.hour }}] = {{ hour_data.count }};
+    {% endfor %}
 
-    // Risk Level Distribution Chart
-    const riskLevelCtx = document.getElementById('riskLevelChart').getContext('2d');
-    new Chart(riskLevelCtx, {
-        type: 'pie',
+    new Chart(hourlyActivityCtx, {
+        type: 'bar',
         data: {
-            labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+            labels: hours.map(h => `${h}:00`),
             datasets: [{
-                data: {{ risk_levels|safe }},
-                backgroundColor: [
-                    'rgb(239, 68, 68)',
-                    'rgb(234, 179, 8)',
-                    'rgb(34, 197, 94)'
-                ]
+                label: 'Activity Count',
+                data: counts,
+                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                borderColor: 'rgb(59, 130, 246)',
+                borderWidth: 1
             }]
         },
         options: {
             responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
             plugins: {
                 legend: {
-                    position: 'top',
+                    display: false
                 }
             }
         }

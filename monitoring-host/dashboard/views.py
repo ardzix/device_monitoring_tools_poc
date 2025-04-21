@@ -3,13 +3,14 @@ from rest_framework import viewsets, filters, permissions, status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import ActivityLog, AppUsageLog, WebsiteVisitLog, FileAccessLog, USBDeviceLog
+from .models import ActivityLog, AppUsageLog, WebsiteVisitLog, FileAccessLog, USBDeviceLog, BaseLog
 from .serializers import (
     ActivityLogSerializer,
     AppUsageLogSerializer,
     WebsiteVisitLogSerializer,
     FileAccessLogSerializer,
-    USBDeviceLogSerializer
+    USBDeviceLogSerializer,
+    BulkMonitoringSerializer
 )
 import json
 from django.core.files.storage import default_storage
@@ -22,146 +23,115 @@ from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
 from rest_framework.permissions import IsAuthenticated
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 # Create your views here.
 
 class ActivityLogViewSet(viewsets.ModelViewSet):
-    queryset = ActivityLog.objects.all().order_by('-timestamp')
+    queryset = ActivityLog.objects.all()
     serializer_class = ActivityLogSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['is_flagged']
-    search_fields = ['window_title', 'clipboard_content', 'analysis']
-    ordering_fields = ['timestamp', 'confidence']
-    ordering = ['-timestamp']
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
 class AppUsageLogViewSet(viewsets.ModelViewSet):
-    queryset = AppUsageLog.objects.all().order_by('-timestamp')
+    queryset = AppUsageLog.objects.all()
     serializer_class = AppUsageLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
 class WebsiteVisitLogViewSet(viewsets.ModelViewSet):
-    queryset = WebsiteVisitLog.objects.all().order_by('-timestamp')
+    queryset = WebsiteVisitLog.objects.all()
     serializer_class = WebsiteVisitLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
 class FileAccessLogViewSet(viewsets.ModelViewSet):
-    queryset = FileAccessLog.objects.all().order_by('-timestamp')
+    queryset = FileAccessLog.objects.all()
     serializer_class = FileAccessLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
 class USBDeviceLogViewSet(viewsets.ModelViewSet):
-    queryset = USBDeviceLog.objects.all().order_by('-timestamp')
+    queryset = USBDeviceLog.objects.all()
     serializer_class = USBDeviceLogSerializer
-    permission_classes = [IsAuthenticated]  # Require authentication
+    permission_classes = [permissions.AllowAny]
+
+class BulkMonitoringViewSet(viewsets.ModelViewSet):
+    queryset = ActivityLog.objects.all()
+    serializer_class = BulkMonitoringSerializer
+    permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
-        logger.info(f"Received USB device data: {request.data}")
-        return super().create(request, *args, **kwargs)
+        logger.info(f"Received bulk data: {request.data}")
+        logger.info(f"Received files: {request.FILES}")
+        
+        # Parse the JSON data from the request
+        try:
+            data = json.loads(request.data.get('data', '{}'))
+            logger.info(f"Parsed JSON data: {data}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Error parsing JSON data: {e}")
+            return Response({"error": "Invalid JSON data"}, status=400)
 
-class BulkMonitoringViewSet(viewsets.ViewSet):
-    def create(self, request):
-        logger.info("Received bulk data request")
-        logger.info(f"Files in request: {request.FILES.keys()}")
-        logger.info(f"Data in request: {request.data.keys()}")
+        # Create serializer with parsed data
+        serializer = self.get_serializer(data=data)
+        if not serializer.is_valid():
+            logger.error(f"Serializer errors: {serializer.errors}")
+            return Response(serializer.errors, status=400)
 
-        responses = {
-            'app_usage': [],
-            'website_visits': [],
-            'file_access': [],
-            'usb_devices': [],
-            'activity_logs': []
-        }
+        logger.info(f"Validated data: {serializer.validated_data}")
+        
+        # Process each type of log
+        try:
+            # Process app usage logs
+            if 'app_usage' in serializer.validated_data:
+                for log_data in serializer.validated_data['app_usage']:
+                    logger.info(f"Creating app usage log: {log_data}")
+                    AppUsageLog.objects.create(**log_data)
 
-        # Handle multipart form data
-        if 'data' in request.data:
-            try:
-                data = json.loads(request.data['data'])
-                logger.info("Successfully parsed JSON data")
-                logger.info(f"USB devices in data: {data.get('usb_devices', [])}")
-            except json.JSONDecodeError as e:
-                logger.error(f"Error parsing JSON data: {e}")
-                return Response({"error": "Invalid JSON data"}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            data = request.data
+            # Process website visit logs
+            if 'website_visits' in serializer.validated_data:
+                for log_data in serializer.validated_data['website_visits']:
+                    logger.info(f"Creating website visit log: {log_data}")
+                    WebsiteVisitLog.objects.create(**log_data)
 
-        # Process USB device logs first
-        if 'usb_devices' in data:
-            logger.info(f"Processing USB device logs: {data['usb_devices']}")
-            serializer = USBDeviceLogSerializer(data=data['usb_devices'], many=True)
-            if serializer.is_valid():
-                serializer.save()
-                responses['usb_devices'] = serializer.data
-                logger.info(f"Successfully saved USB device logs: {serializer.data}")
-            else:
-                logger.error(f"USB device validation errors: {serializer.errors}")
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Process file access logs
+            if 'file_access' in serializer.validated_data:
+                for log_data in serializer.validated_data['file_access']:
+                    logger.info(f"Creating file access log: {log_data}")
+                    FileAccessLog.objects.create(**log_data)
 
-        # Process app usage logs
-        if 'app_usage' in data:
-            serializer = AppUsageLogSerializer(data=data['app_usage'], many=True)
-            if serializer.is_valid():
-                serializer.save()
-                responses['app_usage'] = serializer.data
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Process USB device logs
+            if 'usb_devices' in serializer.validated_data:
+                for log_data in serializer.validated_data['usb_devices']:
+                    logger.info(f"Creating USB device log: {log_data}")
+                    USBDeviceLog.objects.create(**log_data)
 
-        # Process website visit logs
-        if 'website_visits' in data:
-            serializer = WebsiteVisitLogSerializer(data=data['website_visits'], many=True)
-            if serializer.is_valid():
-                serializer.save()
-                responses['website_visits'] = serializer.data
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Process activity logs
+            if 'activity_logs' in serializer.validated_data:
+                for log_data in serializer.validated_data['activity_logs']:
+                    logger.info(f"Creating activity log: {log_data}")
+                    # Handle screenshot file if present
+                    if 'screenshot' in log_data:
+                        screenshot_path = log_data['screenshot']
+                        filename = os.path.basename(screenshot_path)
+                        
+                        # Check if the file was uploaded in the request
+                        if filename in request.FILES:
+                            # Save the file to MEDIA_ROOT/screenshots
+                            file_content = request.FILES[filename]
+                            save_path = os.path.join('screenshots', filename)
+                            path = default_storage.save(save_path, file_content)
+                            log_data['screenshot'] = path
+                            logger.info(f"Saved screenshot to {path}")
+                        else:
+                            logger.warning(f"Screenshot file {filename} not found in request.FILES")
+                            log_data['screenshot'] = ''  # Clear the path if file wasn't uploaded
+                    
+                    ActivityLog.objects.create(**log_data)
 
-        # Process file access logs
-        if 'file_access' in data:
-            serializer = FileAccessLogSerializer(data=data['file_access'], many=True)
-            if serializer.is_valid():
-                serializer.save()
-                responses['file_access'] = serializer.data
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        # Process activity logs
-        if 'activity_logs' in data:
-            activity_logs = []
-            
-            for log_data in data['activity_logs']:
-                log_copy = log_data.copy()  # Create a copy to avoid modifying the original
-                
-                # Handle screenshot file if present
-                if 'screenshot' in log_copy and log_copy['screenshot']:
-                    original_screenshot_path = log_copy['screenshot']
-                    if 'screenshot' in request.FILES:
-                        file = request.FILES['screenshot']
-                        filename = os.path.basename(original_screenshot_path)
-                        try:
-                            saved_path = default_storage.save(f'screenshots/{filename}', ContentFile(file.read()))
-                            log_copy['screenshot'] = saved_path  # Update with the saved path
-                            logger.info(f"Saved screenshot to {saved_path}")
-                        except Exception as e:
-                            logger.error(f"Error saving screenshot: {e}")
-                            log_copy['screenshot'] = None
-                    else:
-                        logger.warning(f"Screenshot file not found in request.FILES. Available fields: {list(request.FILES.keys())}")
-                        log_copy['screenshot'] = None
-
-                activity_logs.append(log_copy)
-
-            logger.info(f"Processing activity logs: {activity_logs}")
-            serializer = ActivityLogSerializer(data=activity_logs, many=True)
-            if serializer.is_valid():
-                serializer.save()
-                responses['activity_logs'] = serializer.data
-            else:
-                logger.error(f"Activity log validation errors: {serializer.errors}")
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(responses, status=status.HTTP_201_CREATED)
+            return Response(status=201)
+        except Exception as e:
+            logger.error(f"Error creating logs: {e}")
+            return Response({"error": str(e)}, status=500)
 
 class LogsExplorerView(ListView):
     template_name = 'dashboard/logs_explorer.html'
@@ -278,86 +248,167 @@ class LogsExplorerView(ListView):
         return context
 
 def dashboard_view(request):
-    # Get real data from models
+    # Get total counts for each log type
     total_activity_logs = ActivityLog.objects.count()
-    flagged_incidents = ActivityLog.objects.filter(is_flagged=True).count()
+    total_app_usage = AppUsageLog.objects.count()
+    total_website_visits = WebsiteVisitLog.objects.count()
+    total_file_access = FileAccessLog.objects.count()
+    total_usb_events = USBDeviceLog.objects.count()
+
+    # Get device statistics
+    devices = BaseLog.objects.values('device_identifier').distinct()
+    total_devices = devices.count()
     
-    # Get top keywords from activity logs
-    keyword_counts = {}
-    for log in ActivityLog.objects.exclude(keywords__isnull=True):
-        for keyword in log.keywords:
-            keyword_counts[keyword] = keyword_counts.get(keyword, 0) + 1
-    top_keywords = [{'keyword': k, 'count': v} for k, v in 
-                   sorted(keyword_counts.items(), key=lambda x: x[1], reverse=True)[:3]]
-    
-    # Get USB device count
-    usb_devices = USBDeviceLog.objects.filter(action='connect').count()
-    
-    # Get flagged trend data (last 7 days)
-    today = timezone.now().date()
-    flagged_trend = {
-        'labels': [(today - timedelta(days=i)).strftime('%a') for i in range(6, -1, -1)],
-        'data': [
-            ActivityLog.objects.filter(
-                is_flagged=True,
-                timestamp__date=today - timedelta(days=i)
-            ).count()
-            for i in range(6, -1, -1)
-        ]
-    }
-    
-    # Get risk level distribution
-    risk_levels = [
-        ActivityLog.objects.filter(confidence__gte=0.7).count(),  # High
-        ActivityLog.objects.filter(confidence__gte=0.4, confidence__lt=0.7).count(),  # Medium
-        ActivityLog.objects.filter(confidence__lt=0.4).count()  # Low
-    ]
-    
-    # Get top websites by duration
-    top_websites = WebsiteVisitLog.objects.values('url', 'title').annotate(
-        total_duration=models.Sum('duration')
-    ).order_by('-total_duration')[:9]
-    
-    # Get top apps by duration
-    top_apps = AppUsageLog.objects.values('app_name', 'window_title').annotate(
-        total_duration=models.Sum('duration')
-    ).order_by('-total_duration')[:9]
-    
-    # Get top accessed files
-    top_files_query = FileAccessLog.objects.values('file_path').annotate(
-        count=models.Count('id')
-    ).order_by('-count')[:9]
-    
-    top_files = [
-        {
-            'name': os.path.basename(item['file_path']),
-            'path': item['file_path'],
-            'count': item['count']
+    # Get activity statistics per device
+    device_stats = []
+    for device in devices:
+        device_id = device['device_identifier']
+        stats = {
+            'device_identifier': device_id,
+            'activity_count': ActivityLog.objects.filter(device_identifier=device_id).count(),
+            'flagged_count': ActivityLog.objects.filter(device_identifier=device_id, is_flagged=True).count(),
+            'app_usage_count': AppUsageLog.objects.filter(device_identifier=device_id).count(),
+            'website_visits': WebsiteVisitLog.objects.filter(device_identifier=device_id).count(),
+            'file_operations': FileAccessLog.objects.filter(device_identifier=device_id).count(),
+            'usb_events': USBDeviceLog.objects.filter(device_identifier=device_id).count(),
+            'last_seen': BaseLog.objects.filter(device_identifier=device_id).order_by('-timestamp').first().timestamp,
         }
-        for item in top_files_query
-    ]
+        device_stats.append(stats)
+
+    # Get recent flagged activities
+    recent_flagged = ActivityLog.objects.filter(
+        is_flagged=True
+    ).order_by('-timestamp')[:10]
+
+    # Get top keywords across all devices
+    keyword_stats = {}
+    for log in ActivityLog.objects.exclude(keywords__isnull=True):
+        if log.keywords:
+            for keyword in log.keywords:
+                if keyword in keyword_stats:
+                    keyword_stats[keyword] += 1
+                else:
+                    keyword_stats[keyword] = 1
     
-    # Get recent screenshots
-    recent_screenshots = ActivityLog.objects.filter(is_flagged=True).exclude(screenshot__isnull=True).exclude(screenshot='').order_by('-timestamp')[:9]
+    top_keywords = sorted(
+        [{'keyword': k, 'count': v} for k, v in keyword_stats.items()],
+        key=lambda x: x['count'],
+        reverse=True
+    )[:10]
+
+    # Get recent screenshots with context
+    recent_screenshots = ActivityLog.objects.filter(
+        screenshot__isnull=False,
+        is_flagged=True
+    ).exclude(
+        screenshot=''
+    ).order_by('-timestamp')[:6]
+
+    # Get active hours distribution (last 24 hours)
+    now = timezone.now()
+    last_24h = now - timedelta(hours=24)
     
+    # Create a list of all hours
+    hourly_activity = []
+    for hour in range(24):
+        hour_start = last_24h.replace(hour=hour, minute=0, second=0, microsecond=0)
+        hour_end = hour_start + timedelta(hours=1)
+        count = BaseLog.objects.filter(
+            timestamp__gte=hour_start,
+            timestamp__lt=hour_end
+        ).count()
+        hourly_activity.append({'hour': hour, 'count': count})
+
+    # Get file operations summary
+    file_operations = FileAccessLog.objects.values('operation').annotate(
+        count=models.Count('id')
+    ).order_by('-count')
+
+    # Get USB device summary
+    usb_summary = USBDeviceLog.objects.values('action').annotate(
+        count=models.Count('id')
+    ).order_by('-count')
+
+    # Get top accessed websites
+    top_websites = WebsiteVisitLog.objects.values('url', 'title').annotate(
+        visit_count=models.Count('id'),
+        total_duration=models.Sum('duration')
+    ).order_by('-visit_count')[:5]
+
+    # Get top used applications
+    top_apps = AppUsageLog.objects.values('app_name').annotate(
+        usage_count=models.Count('id'),
+        total_duration=models.Sum('duration'),
+        active_time=models.Sum(models.Case(
+            models.When(is_active=True, then=models.F('duration')),
+            default=0,
+            output_field=models.IntegerField(),
+        ))
+    ).order_by('-total_duration')[:5]
+
     context = {
+        # Overview statistics
         'total_activity_logs': total_activity_logs,
-        'flagged_incidents': flagged_incidents,
+        'total_app_usage': total_app_usage,
+        'total_website_visits': total_website_visits,
+        'total_file_access': total_file_access,
+        'total_usb_events': total_usb_events,
+        'total_devices': total_devices,
+        
+        # Device-specific statistics
+        'device_stats': device_stats,
+        
+        # Recent flagged activities
+        'recent_flagged': recent_flagged,
+        
+        # Keyword analysis
         'top_keywords': top_keywords,
-        'usb_devices': usb_devices,
-        'flagged_trend': flagged_trend,
-        'risk_levels': risk_levels,
-        'top_websites': top_websites,
-        'top_apps': top_apps,
-        'top_files': top_files,
+        
+        # Screenshots with context
         'recent_screenshots': [
             {
-                'url': f"/media/{log.screenshot}" if log.screenshot and not log.screenshot.startswith('screenshots/') else f"/media/screenshots/{os.path.basename(log.screenshot)}" if log.screenshot else None,
-                'details': f"Window: {log.window_title}\nKeywords: {', '.join(log.keywords) if log.keywords else 'None'}"
-            }
-            for log in recent_screenshots
-        ]
+                'timestamp': log.timestamp,
+                'window_title': log.window_title,
+                'url': log.screenshot.url if log.screenshot else None,
+                'is_flagged': log.is_flagged,
+                'confidence': log.confidence,
+                'analysis': log.analysis,
+                'keywords': log.keywords,
+                'device_identifier': log.device_identifier,
+            } for log in recent_screenshots
+        ],
+        
+        # Activity distribution
+        'hourly_activity': hourly_activity,
+        
+        # File operations summary
+        'file_operations': file_operations,
+        
+        # USB activity summary
+        'usb_summary': usb_summary,
+        
+        # Top websites
+        'top_websites': [
+            {
+                'url': site['url'],
+                'title': site['title'],
+                'visit_count': site['visit_count'],
+                'total_duration': timedelta(seconds=site['total_duration'])
+            } for site in top_websites
+        ],
+        
+        # Top applications
+        'top_apps': [
+            {
+                'name': app['app_name'],
+                'usage_count': app['usage_count'],
+                'total_duration': timedelta(seconds=app['total_duration']),
+                'active_time': timedelta(seconds=app['active_time']),
+                'idle_time': timedelta(seconds=app['total_duration'] - app['active_time'])
+            } for app in top_apps
+        ],
     }
+    
     return render(request, 'dashboard/dashboard.html', context)
 
 def logs_explorer_view(request):
@@ -458,4 +509,4 @@ def logs_explorer_view(request):
         'keyword': keyword,
         'flagged_only': flagged_only
     }
-    return render(request, 'dashboard/logs.html', context)
+    return render(request, 'dashboard/logs_explorer.html', context)

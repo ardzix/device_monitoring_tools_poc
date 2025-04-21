@@ -1,4 +1,4 @@
-module employeemonitoring
+module employeemonitoring/monitor-agent
 
 go 1.18
 

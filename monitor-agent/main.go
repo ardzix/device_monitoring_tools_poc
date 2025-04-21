@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -11,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"employeemonitoring/monitoring"
-	"employeemonitoring/transport"
+	"employeemonitoring/monitor-agent/monitoring"
+	"employeemonitoring/monitor-agent/transport"
 
 	"github.com/joho/godotenv"
 )
@@ -50,13 +52,42 @@ func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 	return duration
 }
 
+// getMACAddress returns the MAC address of the first non-loopback interface
+func getMACAddress() (string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", fmt.Errorf("failed to get network interfaces: %v", err)
+	}
+
+	for _, iface := range interfaces {
+		// Skip loopback and interfaces without MAC
+		if iface.Flags&net.FlagLoopback != 0 || iface.HardwareAddr == nil {
+			continue
+		}
+
+		// Skip interfaces that are down
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+
+		mac := iface.HardwareAddr.String()
+		if mac != "" {
+			// Replace colons with dashes for better compatibility
+			mac = strings.ReplaceAll(mac, ":", "-")
+			return mac, nil
+		}
+	}
+
+	return "", fmt.Errorf("no suitable network interface found")
+}
+
 func main() {
 	// Parse command line flags
 	hostFlag := flag.String("host", "http://localhost:8000", "Host server URL")
 	flag.Parse()
 
 	// Load environment variables from the correct path
-	envPath := filepath.Join("..", "..", ".env") // Go up two levels to project root
+	envPath := filepath.Join("..", ".env") // Go up two levels to project root
 	if err := godotenv.Load(envPath); err != nil {
 		log.Printf("Warning: Error loading .env file from %s: %v", envPath, err)
 		// Try loading from current directory as fallback
@@ -70,6 +101,15 @@ func main() {
 	if host == "" {
 		host = *hostFlag
 	}
+
+	// Get device MAC address for identifier
+	deviceIdentifier, err := getMACAddress()
+	if err != nil {
+		log.Printf("Warning: Failed to get MAC address: %v", err)
+		// Fallback to a timestamp-based identifier
+		deviceIdentifier = fmt.Sprintf("device_%d", time.Now().Unix())
+	}
+	log.Printf("Using device identifier: %s", deviceIdentifier)
 
 	// Get intervals from environment variables with proper defaults
 	appInterval := getEnvDuration("APP_MONITOR_INTERVAL", 1*time.Second)
@@ -89,8 +129,8 @@ func main() {
 	log.Printf("  SCREENSHOT_INTERVAL: %v", screenshotInterval)
 	log.Printf("  SEND_DATA_INTERVAL: %v", sendInterval)
 
-	// Initialize HTTP client
-	client := transport.NewHTTPClient(host)
+	// Initialize HTTP client with device identifier
+	client := transport.NewHTTPClient(host, os.Getenv("API_KEY"), deviceIdentifier)
 
 	// Create channels for different types of monitoring data
 	appCh := make(chan map[string]interface{}, 100)
@@ -109,49 +149,17 @@ func main() {
 	screenshotMonitor := monitoring.NewScreenshotMonitor(screenshotInterval)
 	go screenshotMonitor.Monitor(screenshotCh)
 
+	// Start data collection goroutine
+	go client.CollectAndSendData(appCh, websiteCh, fileCh, usbCh, screenshotCh, sendInterval)
+
 	// Handle OS signals
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	log.Printf("Monitor agent is now running. Press Ctrl+C to stop.")
 
-	// Create a ticker for bulk sending using the configured interval
-	sendTicker := time.NewTicker(sendInterval)
-	defer sendTicker.Stop()
+	<-sigChan
 
-	// Process incoming data
-	for {
-		select {
-		case data := <-appCh:
-			log.Printf("Received app usage data: %v", data)
-			client.AddData("app_usage", data)
-		case data := <-websiteCh:
-			log.Printf("Received website visit data: %v", data)
-			client.AddData("website_visits", data)
-		case data := <-fileCh:
-			log.Printf("Received file access data: %v", data)
-			client.AddData("file_access", data)
-		case data := <-usbCh:
-			log.Printf("Received USB device data: %v", data)
-			client.AddData("usb_devices", data)
-		case data := <-screenshotCh:
-			log.Printf("Received screenshot data: %v", data)
-			client.AddData("activity_logs", data)
-		case <-sendTicker.C:
-			log.Printf("Sending bulk data...")
-			// Send all collected data in bulk
-			if err := client.SendBulkData(); err != nil {
-				log.Printf("Error sending bulk data: %v", err)
-			} else {
-				log.Printf("Bulk data sent successfully")
-			}
-		case sig := <-sigChan:
-			log.Printf("Received signal %v, sending final data and shutting down...", sig)
-			// Send any remaining data before shutting down
-			if err := client.SendBulkData(); err != nil {
-				log.Printf("Error sending final bulk data: %v", err)
-			}
-			return
-		}
-	}
+	log.Println("Received signal interrupt, sending final data and shutting down...")
+	client.SendFinalData()
 }

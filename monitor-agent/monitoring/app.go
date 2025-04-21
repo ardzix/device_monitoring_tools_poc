@@ -28,21 +28,39 @@ func NewAppMonitor() *AppMonitor {
 	return &AppMonitor{
 		startTime: time.Now(),
 		interval:  time.Duration(interval) * time.Second,
+		isActive:  true, // Initialize as active
 	}
 }
 
-func (m *AppMonitor) GetActiveApp() (string, string, error) {
-	// Mock implementation for Linux
-	// In a real implementation, this would use platform-specific methods
+func (m *AppMonitor) GetActiveApp() (string, string, bool, error) {
+	// Get active window
 	cmd := exec.Command("xdotool", "getactivewindow", "getwindowname")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", "", fmt.Errorf("error getting active window: %v", err)
+		return "", "", false, fmt.Errorf("error getting active window: %v", err)
 	}
 
 	title := strings.TrimSpace(string(output))
-	// For demo purposes, we'll use the window title as both app name and title
-	return title, title, nil
+
+	// Check if window is focused
+	cmd = exec.Command("xdotool", "getwindowfocus")
+	focusOutput, err := cmd.Output()
+	if err != nil {
+		return title, title, false, nil
+	}
+
+	// Get window state
+	cmd = exec.Command("xprop", "-id", strings.TrimSpace(string(focusOutput)), "_NET_WM_STATE")
+	stateOutput, err := cmd.Output()
+	if err != nil {
+		return title, title, true, nil // Assume active if we can't determine state
+	}
+
+	// Check if window is not minimized or hidden
+	isActive := !strings.Contains(string(stateOutput), "_NET_WM_STATE_HIDDEN") &&
+		!strings.Contains(string(stateOutput), "_NET_WM_STATE_MINIMIZED")
+
+	return title, title, isActive, nil
 }
 
 func (m *AppMonitor) Monitor(ch chan<- map[string]interface{}) {
@@ -50,16 +68,19 @@ func (m *AppMonitor) Monitor(ch chan<- map[string]interface{}) {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		appName, windowTitle, err := m.GetActiveApp()
+		appName, windowTitle, isActive, err := m.GetActiveApp()
 		if err != nil {
 			log.Printf("Error getting active app: %v", err)
 			continue
 		}
 
-		if appName != m.lastApp || windowTitle != m.lastTitle {
+		// Send data if the app, title, or active state has changed
+		if appName != m.lastApp || windowTitle != m.lastTitle || isActive != m.isActive {
 			// If there was a previous app running, send its usage data
 			if m.lastApp != "" {
 				duration := int(time.Since(m.startTime).Seconds())
+				log.Printf("Sending app usage data: app=%s, title=%s, duration=%d, active=%v",
+					m.lastApp, m.lastTitle, duration, m.isActive)
 				ch <- map[string]interface{}{
 					"app_name":     m.lastApp,
 					"window_title": m.lastTitle,
@@ -70,6 +91,7 @@ func (m *AppMonitor) Monitor(ch chan<- map[string]interface{}) {
 			// Update the current app info
 			m.lastApp = appName
 			m.lastTitle = windowTitle
+			m.isActive = isActive
 			m.startTime = time.Now()
 		}
 	}

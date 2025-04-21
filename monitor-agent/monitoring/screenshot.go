@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"employeemonitoring/analysis"
+	"employeemonitoring/monitor-agent/analysis"
 )
 
 type ScreenshotMonitor struct {
