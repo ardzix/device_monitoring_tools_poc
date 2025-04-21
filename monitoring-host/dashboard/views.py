@@ -18,7 +18,7 @@ from django.core.files.base import ContentFile
 import logging
 import os
 from django.views.generic import ListView
-from django.db.models import Q
+from django.db.models import Q, Max, Count, Subquery, OuterRef
 from django.db import models
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -256,25 +256,43 @@ def dashboard_view(request):
     total_file_access = FileAccessLog.objects.count()
     total_usb_events = USBDeviceLog.objects.count()
 
-    # Get device statistics
-    devices = BaseLog.objects.values('device_identifier').distinct()
-    total_devices = devices.count()
+    # Get unique devices using subquery for the latest timestamp
+    latest_activities = BaseLog.objects.values('device_identifier').annotate(
+        last_seen=Max('timestamp')
+    )
     
-    # Get activity statistics per device
+    total_devices = latest_activities.count()
+    
+    # Get activity statistics per unique device
     device_stats = []
-    for device in devices:
-        device_id = device['device_identifier']
+    for activity in latest_activities:
+        device_id = activity['device_identifier']
+        
+        # Get all counts in a single query
         stats = {
             'device_identifier': device_id,
+            'last_seen': activity['last_seen'],
             'activity_count': ActivityLog.objects.filter(device_identifier=device_id).count(),
             'flagged_count': ActivityLog.objects.filter(device_identifier=device_id, is_flagged=True).count(),
             'app_usage_count': AppUsageLog.objects.filter(device_identifier=device_id).count(),
             'website_visits': WebsiteVisitLog.objects.filter(device_identifier=device_id).count(),
             'file_operations': FileAccessLog.objects.filter(device_identifier=device_id).count(),
             'usb_events': USBDeviceLog.objects.filter(device_identifier=device_id).count(),
-            'last_seen': BaseLog.objects.filter(device_identifier=device_id).order_by('-timestamp').first().timestamp,
         }
+        
+        # Calculate total activities
+        stats['total_activities'] = (
+            stats['activity_count'] +
+            stats['app_usage_count'] +
+            stats['website_visits'] +
+            stats['file_operations'] +
+            stats['usb_events']
+        )
+        
         device_stats.append(stats)
+    
+    # Sort device stats by total activities and last seen
+    device_stats.sort(key=lambda x: (-x['total_activities'], -x['last_seen'].timestamp()))
 
     # Get recent flagged activities
     recent_flagged = ActivityLog.objects.filter(
@@ -356,7 +374,7 @@ def dashboard_view(request):
         'total_usb_events': total_usb_events,
         'total_devices': total_devices,
         
-        # Device-specific statistics
+        # Device-specific statistics (now properly aggregated)
         'device_stats': device_stats,
         
         # Recent flagged activities

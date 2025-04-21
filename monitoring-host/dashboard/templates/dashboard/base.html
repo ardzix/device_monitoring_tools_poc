@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" :class="{ 'dark': darkMode }">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +8,21 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            'bg': '#1a1a1a',
+                            'secondary': '#2d2d2d'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Alpine.js -->
@@ -18,13 +33,15 @@
     <style>
         [x-cloak] { display: none !important; }
         .smooth-transition { transition: all 0.3s ease-in-out; }
+        .dark body { background-color: #1a1a1a; color: #ffffff; }
+        .dark .dark\:divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: #374151; }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-gray-50">
+<body class="bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-gray-100 h-full transition-colors duration-200">
     <div class="min-h-screen flex" x-data="{ sidebarOpen: true }">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-800 text-white fixed h-full smooth-transition" 
+        <aside class="w-64 bg-gray-800 dark:bg-dark-secondary text-white fixed h-full smooth-transition" 
                :class="{ '-ml-64': !sidebarOpen }">
             <div class="p-4">
                 <div class="flex items-center justify-between">
@@ -35,21 +52,30 @@
                 </div>
                 <nav class="mt-8">
                     <a href="{% url 'dashboard' %}" 
-                       class="flex items-center p-2 rounded-lg {% if request.resolver_match.url_name == 'dashboard' %}bg-gray-700{% endif %} hover:bg-gray-700">
+                       class="flex items-center p-2 rounded-lg {% if request.resolver_match.url_name == 'dashboard' %}bg-gray-700 dark:bg-gray-600{% endif %} hover:bg-gray-700 dark:hover:bg-gray-600">
                         <i class="fas fa-chart-line w-6"></i>
                         <span class="ml-3">Dashboard</span>
                     </a>
                     <a href="{% url 'logs_explorer' %}" 
-                       class="flex items-center p-2 rounded-lg {% if request.resolver_match.url_name == 'logs_explorer' %}bg-gray-700{% endif %} hover:bg-gray-700 mt-2">
+                       class="flex items-center p-2 rounded-lg {% if request.resolver_match.url_name == 'logs_explorer' %}bg-gray-700 dark:bg-gray-600{% endif %} hover:bg-gray-700 dark:hover:bg-gray-600 mt-2">
                         <i class="fas fa-search w-6"></i>
                         <span class="ml-3">Logs Explorer</span>
                     </a>
                     <a href="/admin/" 
-                       class="flex items-center p-2 rounded-lg hover:bg-gray-700 mt-2">
+                       class="flex items-center p-2 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 mt-2">
                         <i class="fas fa-cog w-6"></i>
                         <span class="ml-3">Admin Panel</span>
                     </a>
                 </nav>
+
+                <!-- Dark Mode Toggle -->
+                <div class="mt-8 border-t border-gray-700 pt-4">
+                    <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)" 
+                            class="flex items-center p-2 rounded-lg hover:bg-gray-700 dark:hover:bg-gray-600 w-full">
+                        <i class="fas" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
+                        <span class="ml-3" x-text="darkMode ? 'Light Mode' : 'Dark Mode'"></span>
+                    </button>
+                </div>
             </div>
         </aside>
 
@@ -62,15 +88,15 @@
 
     <!-- Modal Template -->
     <template x-if="showModal">
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-            <div class="bg-white rounded-lg p-6 max-w-4xl w-full mx-4">
+        <div class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center">
+            <div class="bg-white dark:bg-dark-secondary rounded-lg p-6 max-w-4xl w-full mx-4">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-semibold" x-text="modalTitle"></h3>
-                    <button @click="showModal = false" class="text-gray-500 hover:text-gray-700">
+                    <h3 class="text-xl font-semibold dark:text-white" x-text="modalTitle"></h3>
+                    <button @click="showModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div x-html="modalContent"></div>
+                <div x-html="modalContent" class="dark:text-gray-300"></div>
             </div>
         </div>
     </template>
@@ -88,6 +114,11 @@
                 }
             }))
         });
+
+        // Initialize dark mode from localStorage
+        if (localStorage.getItem('darkMode') === null) {
+            localStorage.setItem('darkMode', window.matchMedia('(prefers-color-scheme: dark)').matches);
+        }
     </script>
     {% block extra_js %}{% endblock %}
 </body>

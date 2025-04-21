@@ -1,4 +1,5 @@
 {% extends "dashboard/base.html" %}
+{% load static %}
 
 {% block page_title %}Monitoring Overview{% endblock %}
 
@@ -6,57 +7,53 @@
 <!-- Stats Overview -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
     <!-- Total Devices -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm text-gray-500">Monitored Devices</p>
-                <h3 class="text-2xl font-bold text-gray-800">{{ total_devices }}</h3>
-                <p class="text-sm text-blue-500">Active</p>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900/20">
+                <i class="fas fa-laptop text-blue-500 dark:text-blue-400"></i>
             </div>
-            <div class="bg-blue-100 p-3 rounded-full">
-                <i class="fas fa-laptop text-blue-500 text-xl"></i>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Devices</p>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">{{ total_devices }}</h3>
             </div>
         </div>
     </div>
 
     <!-- Total Activity Logs -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm text-gray-500">Total Activities</p>
-                <h3 class="text-2xl font-bold text-gray-800">{{ total_activity_logs }}</h3>
-                <p class="text-sm text-green-500">Monitored</p>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-green-100 dark:bg-green-900/20">
+                <i class="fas fa-chart-line text-green-500 dark:text-green-400"></i>
             </div>
-            <div class="bg-green-100 p-3 rounded-full">
-                <i class="fas fa-chart-line text-green-500 text-xl"></i>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Activities</p>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">{{ total_activity_logs }}</h3>
             </div>
         </div>
     </div>
 
     <!-- USB Events -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm text-gray-500">USB Events</p>
-                <h3 class="text-2xl font-bold text-gray-800">{{ total_usb_events }}</h3>
-                <p class="text-sm text-purple-500">Detected</p>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-purple-100 dark:bg-purple-900/20">
+                <i class="fas fa-usb text-purple-500 dark:text-purple-400"></i>
             </div>
-            <div class="bg-purple-100 p-3 rounded-full">
-                <i class="fas fa-usb text-purple-500 text-xl"></i>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">USB Events</p>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">{{ total_usb_events }}</h3>
             </div>
         </div>
     </div>
 
     <!-- File Operations -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <div class="flex items-center justify-between">
-            <div>
-                <p class="text-sm text-gray-500">File Operations</p>
-                <h3 class="text-2xl font-bold text-gray-800">{{ total_file_access }}</h3>
-                <p class="text-sm text-yellow-500">Tracked</p>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <div class="flex items-center">
+            <div class="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900/20">
+                <i class="fas fa-file text-yellow-500 dark:text-yellow-400"></i>
             </div>
-            <div class="bg-yellow-100 p-3 rounded-full">
-                <i class="fas fa-file text-yellow-500 text-xl"></i>
+            <div class="ml-4">
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">File Operations</p>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">{{ total_file_access }}</h3>
             </div>
         </div>
     </div>
@@ -65,34 +62,61 @@
 <!-- Device Activity Overview -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
     <!-- Device Statistics -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Device Activity Overview</h3>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold dark:text-white">Device Activity Overview</h3>
+            <span class="text-sm text-gray-500 dark:text-gray-400">Total Devices: {{ total_devices }}</span>
+        </div>
         <div class="overflow-y-auto max-h-[300px]">
-            <table class="min-w-full">
-                <thead class="bg-white sticky top-0">
-                    <tr class="text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <th class="px-4 py-2">Device ID</th>
-                        <th class="px-4 py-2">Activities</th>
-                        <th class="px-4 py-2">Flagged</th>
-                        <th class="px-4 py-2">Last Seen</th>
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                    <tr class="text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th class="px-4 py-3">Device ID</th>
+                        <th class="px-4 py-3">Activities</th>
+                        <th class="px-4 py-3">Flagged</th>
+                        <th class="px-4 py-3">Last Seen</th>
+                        <th class="px-4 py-3">Details</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-200">
+                <tbody class="divide-y divide-gray-200 bg-white dark:bg-dark-secondary">
                     {% for device in device_stats %}
-                    <tr class="text-sm">
-                        <td class="px-4 py-2">{{ device.device_identifier }}</td>
-                        <td class="px-4 py-2">
-                            <div class="flex items-center space-x-1">
-                                <span class="text-blue-500">{{ device.activity_count }}</span>
-                                <span class="text-xs text-gray-500">activities</span>
+                    <tr class="text-sm hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td class="px-4 py-3">
+                            <span class="font-medium text-gray-900 dark:text-gray-300">{{ device.device_identifier }}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex flex-col">
+                                <span class="font-medium text-blue-600 dark:text-blue-400">{{ device.total_activities }}</span>
+                                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                    <span class="mr-2">🎯 {{ device.activity_count }}</span>
+                                    <span class="mr-2">📱 {{ device.app_usage_count }}</span>
+                                    <span class="mr-2">🌐 {{ device.website_visits }}</span>
+                                    <span class="mr-2">📂 {{ device.file_operations }}</span>
+                                    <span>🔌 {{ device.usb_events }}</span>
+                                </div>
                             </div>
                         </td>
-                        <td class="px-4 py-2">
-                            <span class="px-2 py-1 text-xs {% if device.flagged_count > 0 %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %} rounded-full">
+                        <td class="px-4 py-3">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if device.flagged_count > 0 %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %}">
                                 {{ device.flagged_count }}
                             </span>
                         </td>
-                        <td class="px-4 py-2 text-gray-500">{{ device.last_seen|timesince }} ago</td>
+                        <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
+                            {{ device.last_seen|timesince }} ago
+                        </td>
+                        <td class="px-4 py-3">
+                            <button type="button" 
+                                    onclick="showDeviceDetails('{{ device.device_identifier }}')"
+                                    class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                View Details
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-3 text-center text-gray-500 dark:text-gray-400">
+                            No devices found
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -101,8 +125,8 @@
     </div>
 
     <!-- Activity Hours -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">24-Hour Activity Distribution</h3>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4 dark:text-white">24-Hour Activity Distribution</h3>
         <div class="h-[300px]">
             <canvas id="hourlyActivityChart" height="200"></canvas>
         </div>
@@ -112,8 +136,8 @@
 <!-- Recent Screenshots and Keywords -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
     <!-- Recent Screenshots -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Recent Screenshots</h3>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4 dark:text-white">Recent Screenshots</h3>
         <div class="grid grid-cols-2 gap-4">
             {% for screenshot in recent_screenshots %}
             <div class="relative group cursor-pointer" 
@@ -141,18 +165,18 @@
     </div>
 
     <!-- Top Keywords -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Top Keywords</h3>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4 dark:text-white">Top Keywords</h3>
         <div class="space-y-4">
             {% for keyword in top_keywords %}
             <div class="flex items-center justify-between">
                 <div class="flex items-center">
-                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-key text-blue-500"></i>
+                    <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                        <i class="fas fa-key text-blue-500 dark:text-blue-400"></i>
                     </div>
                     <span class="ml-3 text-sm font-medium">{{ keyword.keyword }}</span>
                 </div>
-                <span class="text-sm text-gray-500">{{ keyword.count }}x</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ keyword.count }}x</span>
             </div>
             {% endfor %}
         </div>
@@ -162,23 +186,23 @@
 <!-- Application and Website Usage -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
     <!-- Top Applications -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Top Applications</h3>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4 dark:text-white">Top Applications</h3>
         <div class="space-y-4">
             {% for app in top_apps %}
             <div class="flex items-center justify-between">
                 <div class="flex items-center">
-                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-window-maximize text-green-500"></i>
+                    <div class="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
+                        <i class="fas fa-window-maximize text-green-500 dark:text-green-400"></i>
                     </div>
                     <div class="ml-3">
                         <p class="text-sm font-medium">{{ app.name }}</p>
-                        <p class="text-xs text-gray-500">Used {{ app.usage_count }} times</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Used {{ app.usage_count }} times</p>
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-sm text-gray-900">{{ app.total_duration }}</p>
-                    <p class="text-xs text-green-500">Active: {{ app.active_time }}</p>
+                    <p class="text-sm text-gray-900 dark:text-gray-300">{{ app.total_duration }}</p>
+                    <p class="text-xs text-green-500 dark:text-green-400">Active: {{ app.active_time }}</p>
                 </div>
             </div>
             {% endfor %}
@@ -186,23 +210,23 @@
     </div>
 
     <!-- Top Websites -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">Top Websites</h3>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4 dark:text-white">Top Websites</h3>
         <div class="space-y-4">
             {% for site in top_websites %}
             <div class="flex items-center justify-between">
                 <div class="flex items-center">
-                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <i class="fas fa-globe text-blue-500"></i>
+                    <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                        <i class="fas fa-globe text-blue-500 dark:text-blue-400"></i>
                     </div>
                     <div class="ml-3">
                         <p class="text-sm font-medium">{{ site.title|truncatechars:30 }}</p>
-                        <p class="text-xs text-gray-500">{{ site.url|truncatechars:40 }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ site.url|truncatechars:40 }}</p>
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="text-sm text-gray-900">{{ site.total_duration }}</p>
-                    <p class="text-xs text-blue-500">{{ site.visit_count }} visits</p>
+                    <p class="text-sm text-gray-900 dark:text-gray-300">{{ site.total_duration }}</p>
+                    <p class="text-xs text-blue-500 dark:text-blue-400">{{ site.visit_count }} visits</p>
                 </div>
             </div>
             {% endfor %}
@@ -213,8 +237,8 @@
 <!-- File and USB Activity -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
     <!-- File Operations -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">File Operations Summary</h3>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4 dark:text-white">File Operations Summary</h3>
         <div class="space-y-4">
             {% for operation in file_operations %}
             <div class="flex items-center justify-between">
@@ -229,19 +253,23 @@
                         {% if operation.operation == 'create' %}green
                         {% elif operation.operation == 'modify' %}yellow
                         {% elif operation.operation == 'delete' %}red
-                        {% else %}blue{% endif %}-500"></i>
+                        {% else %}blue{% endif %}-500 dark:text-
+                        {% if operation.operation == 'create' %}green
+                        {% elif operation.operation == 'modify' %}yellow
+                        {% elif operation.operation == 'delete' %}red
+                        {% else %}blue{% endif %}-400"></i>
                     </div>
                     <span class="ml-3 text-sm font-medium capitalize">{{ operation.operation }}</span>
                 </div>
-                <span class="text-sm text-gray-500">{{ operation.count }}x</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ operation.count }}x</span>
             </div>
             {% endfor %}
         </div>
     </div>
 
     <!-- USB Activity -->
-    <div class="bg-white rounded-lg shadow-sm p-6">
-        <h3 class="text-lg font-semibold mb-4">USB Activity Summary</h3>
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-sm p-6">
+        <h3 class="text-lg font-semibold mb-4 dark:text-white">USB Activity Summary</h3>
         <div class="space-y-4">
             {% for event in usb_summary %}
             <div class="flex items-center justify-between">
@@ -249,13 +277,28 @@
                     <div class="w-8 h-8 
                         {% if event.action == 'connected' %}bg-green-100{% else %}bg-red-100{% endif %} 
                         rounded-full flex items-center justify-center">
-                        <i class="fas fa-usb text-{% if event.action == 'connected' %}green{% else %}red{% endif %}-500"></i>
+                        <i class="fas fa-usb text-{% if event.action == 'connected' %}green{% else %}red{% endif %}-500 dark:text-{% if event.action == 'connected' %}green{% else %}red{% endif %}-400"></i>
                     </div>
                     <span class="ml-3 text-sm font-medium capitalize">{{ event.action }}</span>
                 </div>
-                <span class="text-sm text-gray-500">{{ event.count }}x</span>
+                <span class="text-sm text-gray-500 dark:text-gray-400">{{ event.count }}x</span>
             </div>
             {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Device Details Modal -->
+<div class="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 hidden items-center justify-center z-50" id="deviceDetailsModal">
+    <div class="bg-white dark:bg-dark-secondary rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold dark:text-white">Device Details</h3>
+                <button type="button" class="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400" onclick="closeDeviceDetails()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="deviceDetailsContent" class="dark:text-gray-300"></div>
         </div>
     </div>
 </div>
@@ -303,6 +346,85 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+});
+
+function showDeviceDetails(deviceId) {
+    // Find the device data
+    const device = {{ device_stats|safe }}.find(d => d.device_identifier === deviceId);
+    if (!device) return;
+
+    // Create the content
+    const content = `
+        <div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <h4 class="font-medium text-gray-900 dark:text-gray-300 mb-2">Activity Summary</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Total Activities:</span>
+                            <span class="font-medium">${device.total_activities}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Flagged Items:</span>
+                            <span class="font-medium">${device.flagged_count}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">Last Active:</span>
+                            <span class="font-medium">${device.last_seen}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <h4 class="font-medium text-gray-900 dark:text-gray-300 mb-2">Activity Breakdown</h4>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">🎯 Activities:</span>
+                            <span class="font-medium">${device.activity_count}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">📱 App Usage:</span>
+                            <span class="font-medium">${device.app_usage_count}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">🌐 Website Visits:</span>
+                            <span class="font-medium">${device.website_visits}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">📂 File Operations:</span>
+                            <span class="font-medium">${device.file_operations}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-500 dark:text-gray-400">🔌 USB Events:</span>
+                            <span class="font-medium">${device.usb_events}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('deviceDetailsContent').innerHTML = content;
+    document.getElementById('deviceDetailsModal').classList.remove('hidden');
+    document.getElementById('deviceDetailsModal').classList.add('flex');
+}
+
+function closeDeviceDetails() {
+    document.getElementById('deviceDetailsModal').classList.remove('flex');
+    document.getElementById('deviceDetailsModal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+document.getElementById('deviceDetailsModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeDeviceDetails();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !document.getElementById('deviceDetailsModal').classList.contains('hidden')) {
+        closeDeviceDetails();
+    }
 });
 </script>
 {% endblock %} 
