@@ -105,7 +105,8 @@ pipeline {
                     usernamePassword(credentialsId: 'ard-dockerhub', usernameVariable: 'DOCKERHUB_CREDENTIALS_USR', passwordVariable: 'DOCKERHUB_CREDENTIALS_PSW')
                 ]) {
                     sh """
-                        # First, copy the .env file to the server
+                        # First, create the directory on the server and copy the .env file
+                        ssh -i "${SSH_KEY_FILE}" -o StrictHostKeyChecking=no root@172.105.124.43 "mkdir -p /root/monitoring-host"
                         scp -i "${SSH_KEY_FILE}" -o StrictHostKeyChecking=no ./monitoring-host/.env root@172.105.124.43:/root/monitoring-host/.env
 
                         # Then deploy the service
