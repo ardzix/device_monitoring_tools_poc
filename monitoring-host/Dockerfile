@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/* 
 
 # Create necessary directories
-RUN mkdir -p /usr/src/app/monitoring-host
+RUN mkdir -p /usr/src/app/monitoring-host /var/log/uwsgi /usr/src/app/monitoring-host/static /usr/src/app/monitoring-host/media
 
 # Copy the requirements file into the container
 COPY monitoring-host/requirements.txt /usr/src/app/monitoring-host/
@@ -40,8 +40,12 @@ ENV PYTHONPATH=/usr/src/app/monitoring-host
 # Collect static files
 RUN cd /usr/src/app/monitoring-host && python manage.py collectstatic --noinput
 
+# Set proper permissions
+RUN chown -R www-data:www-data /usr/src/app/monitoring-host /var/log/uwsgi
+RUN chmod -R 755 /usr/src/app/monitoring-host
+
 # Expose port for uWSGI/Django
-EXPOSE 8000
+EXPOSE 8001
 
 # Create supervisor directory and copy configuration
 RUN mkdir -p /etc/supervisor/conf.d
