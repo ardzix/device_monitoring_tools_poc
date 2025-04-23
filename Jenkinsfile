@@ -38,10 +38,18 @@ pipeline {
                         string(credentialsId: 'ms-arnatech-storage-secret', variable: 'AWS_SECRET_ACCESS_KEY')
                     ]) {
                         sh '''
+                            # Create monitoring-host directory if it doesn't exist
+                            mkdir -p ./monitoring-host
+                            
+                            # Copy and update the .env file
                             cp $ENV_FILE ./monitoring-host/.env
+                            
                             # Update S3 credentials in .env file
                             sed -i "s|^AWS_ACCESS_KEY_ID=.*|AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}|" ./monitoring-host/.env
                             sed -i "s|^AWS_SECRET_ACCESS_KEY=.*|AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}|" ./monitoring-host/.env
+                            
+                            # Verify the .env file was created
+                            ls -la ./monitoring-host/.env
                         '''
                     }
                 }
