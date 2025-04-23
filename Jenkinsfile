@@ -15,8 +15,11 @@ pipeline {
         stage('Clean Workspace') {
             steps {
                 script {
-                    sh 'rm -rf ./* ./.??* || true'
-                    sh 'ls -la'
+                    sh '''
+                        # Clean everything except Jenkinsfile
+                        find . -mindepth 1 -maxdepth 1 ! -name 'Jenkinsfile' -exec rm -rf {} +
+                        ls -la
+                    '''
                 }
             }
         }
@@ -24,7 +27,10 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 script {
-                    sh 'git clone https://github.com/ardzix/device_monitoring_tools_poc.git .'
+                    sh '''
+                        git clone https://github.com/ardzix/device_monitoring_tools_poc.git .
+                        ls -la
+                    '''
                 }
             }
         }
