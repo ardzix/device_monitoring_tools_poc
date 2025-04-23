@@ -28,7 +28,19 @@ pipeline {
             steps {
                 script {
                     sh '''
+                        # Remove the Jenkinsfile temporarily
+                        mv Jenkinsfile ../Jenkinsfile.tmp
+                        
+                        # Clean the workspace completely
+                        rm -rf ./*
+                        rm -rf ./.??*
+                        
+                        # Clone the repository
                         git clone https://github.com/ardzix/device_monitoring_tools_poc.git .
+                        
+                        # Restore the Jenkinsfile
+                        mv ../Jenkinsfile.tmp Jenkinsfile
+                        
                         ls -la
                     '''
                 }
