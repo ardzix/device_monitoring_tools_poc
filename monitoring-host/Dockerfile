@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/* 
 
 # Copy the requirements file into the container
-COPY requirements.txt ./
+COPY monitoring-host/requirements.txt ./
 
 # Install Python dependencies with binary wheels
 RUN pip install --no-cache-dir -r requirements.txt
