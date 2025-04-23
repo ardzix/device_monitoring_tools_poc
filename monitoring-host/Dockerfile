@@ -36,8 +36,9 @@ ENV PYTHONUNBUFFERED=1
 # Expose port for uWSGI/Django
 EXPOSE 8000
 
-# Copy supervisor configuration file into the container
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Create supervisor directory and copy configuration
+RUN mkdir -p /etc/supervisor/conf.d
+COPY monitoring-host/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Run Supervisor to manage processes
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"] 
