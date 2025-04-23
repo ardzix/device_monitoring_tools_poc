@@ -55,12 +55,12 @@ pipeline {
                         string(credentialsId: 'ms-arnatech-storage-access', variable: 'AWS_ACCESS_KEY_ID'),
                         string(credentialsId: 'ms-arnatech-storage-secret', variable: 'AWS_SECRET_ACCESS_KEY')
                     ]) {
-                        sh '''
+                        sh """
                             # Create monitoring-host directory
                             mkdir -p ./monitoring-host
                             
                             # Create a temporary file
-                            cat $ENV_FILE > ./monitoring-host/.env.tmp
+                            cp "\${ENV_FILE}" ./monitoring-host/.env.tmp
                             
                             # Update S3 credentials in the temporary file
                             sed -i "s|^AWS_ACCESS_KEY_ID=.*|AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}|" ./monitoring-host/.env.tmp
@@ -71,8 +71,7 @@ pipeline {
                             
                             # Verify the .env file was created
                             ls -la ./monitoring-host/.env
-                            cat ./monitoring-host/.env
-                        '''
+                        """
                     }
                 }
             }
