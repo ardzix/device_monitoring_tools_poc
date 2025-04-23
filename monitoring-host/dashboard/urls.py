@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from django.views.generic import RedirectView
 from .views import (
     ActivityLogViewSet,
     AppUsageLogViewSet,
@@ -20,6 +21,7 @@ router.register(r'usb-devices', USBDeviceLogViewSet)
 router.register(r'bulk', BulkMonitoringViewSet, basename='bulk')
 
 urlpatterns = [
+    path('', RedirectView.as_view(url='dashboard/', permanent=False)),  # Redirect root to dashboard
     path('dashboard/', dashboard_view, name='dashboard'),
     path('api/', include(router.urls)),
     path('logs/', logs_explorer_view, name='logs_explorer'),
