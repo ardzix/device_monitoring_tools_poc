@@ -88,7 +88,8 @@ WSGI_APPLICATION = 'monitoring_host.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-USE_POSTGRES = os.getenv('USE_POSTGRES', 'False').lower() == 'true'
+USE_POSTGRES = os.getenv('USE_POSTGRES', 'False')
+print(f"USE_POSTGRES: {USE_POSTGRES}")
 
 if USE_POSTGRES:
     DATABASES = {
