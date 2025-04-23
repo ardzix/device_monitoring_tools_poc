@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
+	"runtime"
 	"strconv"
-	"strings"
 	"time"
+
+	"employeemonitoring/monitor-agent/monitoring/windows"
 )
 
 type AppMonitor struct {
@@ -33,33 +34,19 @@ func NewAppMonitor() *AppMonitor {
 }
 
 func (m *AppMonitor) GetActiveApp() (string, string, bool, error) {
-	// Get active window
-	cmd := exec.Command("xdotool", "getactivewindow", "getwindowname")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", "", false, fmt.Errorf("error getting active window: %v", err)
+	if runtime.GOOS != "windows" {
+		return "", "", false, fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 	}
 
-	title := strings.TrimSpace(string(output))
-
-	// Check if window is focused
-	cmd = exec.Command("xdotool", "getwindowfocus")
-	focusOutput, err := cmd.Output()
+	title, err := windows.GetWindowTitle()
 	if err != nil {
-		return title, title, false, nil
+		return "", "", false, err
 	}
 
-	// Get window state
-	cmd = exec.Command("xprop", "-id", strings.TrimSpace(string(focusOutput)), "_NET_WM_STATE")
-	stateOutput, err := cmd.Output()
-	if err != nil {
-		return title, title, true, nil // Assume active if we can't determine state
-	}
+	// On Windows, we'll consider the window active if we can get its title
+	isActive := title != ""
 
-	// Check if window is not minimized or hidden
-	isActive := !strings.Contains(string(stateOutput), "_NET_WM_STATE_HIDDEN") &&
-		!strings.Contains(string(stateOutput), "_NET_WM_STATE_MINIMIZED")
-
+	// Use the window title as both app name and title for now
 	return title, title, isActive, nil
 }
 

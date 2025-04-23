@@ -1,13 +1,36 @@
+//go:build windows
+// +build windows
+
 package monitoring
 
 import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
+	"unsafe"
+
+	"golang.org/x/sys/windows"
+)
+
+var (
+	setupapi = windows.NewLazyDLL("setupapi.dll")
+
+	setupDiGetClassDevsW              = setupapi.NewProc("SetupDiGetClassDevsW")
+	setupDiEnumDeviceInfo             = setupapi.NewProc("SetupDiEnumDeviceInfo")
+	setupDiGetDeviceRegistryPropertyW = setupapi.NewProc("SetupDiGetDeviceRegistryPropertyW")
+	setupDiDestroyDeviceInfoList      = setupapi.NewProc("SetupDiDestroyDeviceInfoList")
+)
+
+const (
+	DIGCF_PRESENT        = 0x2
+	SPDRP_HARDWAREID     = 0x1
+	SPDRP_FRIENDLYNAME   = 0x0C
+	INVALID_HANDLE_VALUE = ^uintptr(0)
 )
 
 type USBMonitor struct {
@@ -28,34 +51,87 @@ func NewUSBMonitor() *USBMonitor {
 	}
 }
 
-func (m *USBMonitor) GetUSBDevices() ([]map[string]string, error) {
-	cmd := exec.Command("lsusb")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("error running lsusb: %v", err)
+type SP_DEVINFO_DATA struct {
+	CbSize    uint32
+	ClassGuid [16]byte
+	DevInst   uint32
+	Reserved  uintptr
+}
+
+func getUSBDevicesWindows() ([]map[string]string, error) {
+	if runtime.GOOS != "windows" {
+		return nil, fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 	}
 
-	var devices []map[string]string
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-		// Parse lsusb output format: Bus 001 Device 002: ID 8087:0024 Intel Corp. Integrated Rate Matching Hub
-		parts := strings.Split(line, " ")
-		if len(parts) < 6 {
-			continue
-		}
-		device := map[string]string{
-			"bus":        parts[1],
-			"device":     parts[3],
-			"vendor_id":  strings.Split(parts[5], ":")[0],
-			"product_id": strings.Split(parts[5], ":")[1],
-			"name":       strings.Join(parts[6:], " "),
-		}
-		devices = append(devices, device)
+	// Get device info set
+	var guid [16]byte // USB device class GUID
+	h, _, err := setupDiGetClassDevsW.Call(
+		uintptr(unsafe.Pointer(&guid)),
+		0,
+		0,
+		DIGCF_PRESENT)
+	if h == INVALID_HANDLE_VALUE {
+		return nil, fmt.Errorf("SetupDiGetClassDevsW failed: %v", err)
 	}
+	defer setupDiDestroyDeviceInfoList.Call(h)
+
+	var devices []map[string]string
+	var index uint32
+	for {
+		var data SP_DEVINFO_DATA
+		data.CbSize = uint32(unsafe.Sizeof(data))
+
+		ret, _, _ := setupDiEnumDeviceInfo.Call(h, uintptr(index), uintptr(unsafe.Pointer(&data)))
+		if ret == 0 {
+			break
+		}
+
+		// Get hardware ID
+		var buf [256]uint16
+		var bufSize uint32
+		ret, _, _ = setupDiGetDeviceRegistryPropertyW.Call(
+			h,
+			uintptr(unsafe.Pointer(&data)),
+			SPDRP_HARDWAREID,
+			0,
+			uintptr(unsafe.Pointer(&buf[0])),
+			uintptr(unsafe.Sizeof(buf)),
+			uintptr(unsafe.Pointer(&bufSize)))
+
+		if ret != 0 {
+			hardwareID := syscall.UTF16ToString(buf[:])
+			if strings.Contains(strings.ToLower(hardwareID), "usb") {
+				// Get friendly name
+				ret, _, _ = setupDiGetDeviceRegistryPropertyW.Call(
+					h,
+					uintptr(unsafe.Pointer(&data)),
+					SPDRP_FRIENDLYNAME,
+					0,
+					uintptr(unsafe.Pointer(&buf[0])),
+					uintptr(unsafe.Sizeof(buf)),
+					uintptr(unsafe.Pointer(&bufSize)))
+
+				friendlyName := ""
+				if ret != 0 {
+					friendlyName = syscall.UTF16ToString(buf[:])
+				}
+
+				device := map[string]string{
+					"hardware_id": hardwareID,
+					"name":        friendlyName,
+				}
+				devices = append(devices, device)
+			}
+		}
+
+		index++
+	}
+
 	return devices, nil
+}
+
+func (m *USBMonitor) GetUSBDevices() ([]map[string]string, error) {
+	return getUSBDevicesWindows()
 }
 
 func (m *USBMonitor) Monitor(ch chan<- map[string]interface{}) {
@@ -69,38 +145,37 @@ func (m *USBMonitor) Monitor(ch chan<- map[string]interface{}) {
 			continue
 		}
 
+		// Create a map of current devices
 		currentDevices := make(map[string]bool)
-
 		for _, device := range devices {
-			deviceID := fmt.Sprintf("%s:%s", device["vendor_id"], device["product_id"])
-			currentDevices[deviceID] = true
+			id := device["hardware_id"]
+			currentDevices[id] = true
 
-			// Check for new devices
-			if !m.lastDevices[deviceID] {
-				// Convert map[string]string to map[string]interface{}
-				deviceData := make(map[string]interface{})
-				for k, v := range device {
-					deviceData[k] = v
+			// Check if this is a new device
+			if !m.lastDevices[id] {
+				log.Printf("New USB device detected: %s", device["name"])
+				ch <- map[string]interface{}{
+					"event":     "connected",
+					"device_id": id,
+					"name":      device["name"],
+					"timestamp": time.Now().Format(time.RFC3339),
 				}
-				deviceData["action"] = "connect"
-				ch <- deviceData
 			}
 		}
 
 		// Check for disconnected devices
-		for deviceID := range m.lastDevices {
-			if !currentDevices[deviceID] {
-				parts := strings.Split(deviceID, ":")
+		for id := range m.lastDevices {
+			if !currentDevices[id] {
+				log.Printf("USB device disconnected: %s", id)
 				ch <- map[string]interface{}{
-					"vendor_id":     parts[0],
-					"product_id":    parts[1],
-					"device_name":   "Unknown Device",
-					"serial_number": "",
-					"action":        "disconnect",
+					"event":     "disconnected",
+					"device_id": id,
+					"timestamp": time.Now().Format(time.RFC3339),
 				}
 			}
 		}
 
+		// Update last devices
 		m.lastDevices = currentDevices
 	}
 }

@@ -104,6 +104,10 @@ class BulkMonitoringSerializer(serializers.Serializer):
 
     def validate_activity_logs(self, value):
         logger.info(f"Validating activity logs data: {value}")
+        for log in value:
+            if 'screenshot' in log:
+                # Remove the screenshot field from the data as it will be handled separately
+                del log['screenshot']
         return value
 
     def to_internal_value(self, data):

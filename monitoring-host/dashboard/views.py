@@ -111,21 +111,17 @@ class BulkMonitoringViewSet(viewsets.ModelViewSet):
                 for log_data in serializer.validated_data['activity_logs']:
                     logger.info(f"Creating activity log: {log_data}")
                     # Handle screenshot file if present
-                    if 'screenshot' in log_data:
-                        screenshot_path = log_data['screenshot']
-                        filename = os.path.basename(screenshot_path)
-                        
-                        # Check if the file was uploaded in the request
-                        if filename in request.FILES:
-                            # Save the file to MEDIA_ROOT/screenshots
-                            file_content = request.FILES[filename]
-                            save_path = os.path.join('screenshots', filename)
-                            path = default_storage.save(save_path, file_content)
-                            log_data['screenshot'] = path
-                            logger.info(f"Saved screenshot to {path}")
-                        else:
-                            logger.warning(f"Screenshot file {filename} not found in request.FILES")
-                            log_data['screenshot'] = ''  # Clear the path if file wasn't uploaded
+                    if 'screenshot' in request.FILES:
+                        # Save the file to MEDIA_ROOT/screenshots
+                        file_content = request.FILES['screenshot']
+                        filename = file_content.name
+                        save_path = os.path.join('screenshots', filename)
+                        path = default_storage.save(save_path, file_content)
+                        log_data['screenshot'] = path
+                        logger.info(f"Saved screenshot to {path}")
+                    else:
+                        logger.warning("No screenshot file found in request.FILES")
+                        log_data['screenshot'] = ''  # Clear the path if file wasn't uploaded
                     
                     ActivityLog.objects.create(**log_data)
 

@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bufio"
+	_ "embed"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -15,9 +16,42 @@ import (
 
 	"employeemonitoring/monitor-agent/monitoring"
 	"employeemonitoring/monitor-agent/transport"
-
-	"github.com/joho/godotenv"
 )
+
+//go:embed env.txt
+var envFile string
+
+func init() {
+	// Read the embedded .env file and set environment variables
+	scanner := bufio.NewScanner(strings.NewReader(envFile))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Split on first = only
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		// Set environment variable if it's not already set
+		if os.Getenv(key) == "" {
+			os.Setenv(key, value)
+			log.Printf("Set environment variable: %s", key)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("Error reading embedded .env file: %v", err)
+	}
+}
 
 // getEnvBool returns true if the environment variable is set to "true" (case insensitive)
 func getEnvBool(key string, defaultValue bool) bool {
@@ -86,20 +120,13 @@ func main() {
 	hostFlag := flag.String("host", "http://localhost:8000", "Host server URL")
 	flag.Parse()
 
-	// Load environment variables from the correct path
-	envPath := filepath.Join("..", ".env") // Go up two levels to project root
-	if err := godotenv.Load(envPath); err != nil {
-		log.Printf("Warning: Error loading .env file from %s: %v", envPath, err)
-		// Try loading from current directory as fallback
-		if err := godotenv.Load(); err != nil {
-			log.Printf("Warning: Error loading .env file from current directory: %v", err)
-		}
-	}
-
 	// Get host URL from environment variable or fall back to command line flag
 	host := os.Getenv("HOST_URL")
 	if host == "" {
 		host = *hostFlag
+		log.Printf("Warning: HOST_URL not found in environment, using default: %s", host)
+	} else {
+		log.Printf("Using HOST_URL from environment: %s", host)
 	}
 
 	// Get device MAC address for identifier

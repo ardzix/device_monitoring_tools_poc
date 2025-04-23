@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"employeemonitoring/monitor-agent/monitoring/windows"
 )
 
 type WebsiteMonitor struct {
@@ -31,15 +33,27 @@ func NewWebsiteMonitor() *WebsiteMonitor {
 }
 
 func (m *WebsiteMonitor) GetActiveWebsite() (string, string, error) {
-	// Mock implementation for Linux
-	// In a real implementation, this would use browser-specific methods
-	cmd := exec.Command("xdotool", "getactivewindow", "getwindowname")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", "", fmt.Errorf("error getting active window: %v", err)
+	if runtime.GOOS != "windows" {
+		return "", "", fmt.Errorf("unsupported operating system: %s", runtime.GOOS)
 	}
 
-	title := strings.TrimSpace(string(output))
+	title, err := windows.GetWindowTitle()
+	if err != nil {
+		return "", "", err
+	}
+
+	// Check if the window title contains browser names
+	lowerTitle := strings.ToLower(title)
+	isBrowser := strings.Contains(lowerTitle, "chrome") ||
+		strings.Contains(lowerTitle, "firefox") ||
+		strings.Contains(lowerTitle, "edge") ||
+		strings.Contains(lowerTitle, "opera") ||
+		strings.Contains(lowerTitle, "safari")
+
+	if !isBrowser {
+		return "", "", nil
+	}
+
 	// For now, we'll use a mock URL based on the window title
 	// In a real implementation, this would get the actual URL from the browser
 	url := fmt.Sprintf("https://mock-url.com/%s", strings.ReplaceAll(title, " ", "-"))
@@ -55,6 +69,11 @@ func (m *WebsiteMonitor) Monitor(ch chan<- map[string]interface{}) {
 		url, title, err := m.GetActiveWebsite()
 		if err != nil {
 			log.Printf("Error getting active website: %v", err)
+			continue
+		}
+
+		// If no browser window is active or couldn't get URL
+		if url == "" {
 			continue
 		}
 

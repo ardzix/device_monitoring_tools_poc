@@ -86,6 +86,7 @@ screenshots/
 logs/
 temp/
 tmp/
+monitor-agent/env.txt
 
 # Sensitive data
 *.pem
