@@ -26,6 +26,7 @@ RUN ls -la /usr/src/app/monitoring-host/requirements.txt
 
 # Install Python dependencies with binary wheels
 RUN pip install --no-cache-dir -r /usr/src/app/monitoring-host/requirements.txt
+RUN pip install --no-cache-dir uwsgi
 
 # Copy the application code into the container
 COPY monitoring-host/ /usr/src/app/monitoring-host/
