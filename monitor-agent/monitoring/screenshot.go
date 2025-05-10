@@ -78,6 +78,7 @@ func (m *ScreenshotMonitor) Monitor(dataChan chan<- map[string]interface{}) {
 
 		// Send screenshot data to channel
 		data := map[string]interface{}{
+			"raw_data":     analysisResult.RawData,
 			"timestamp":    time.Now().Format(time.RFC3339),
 			"window_title": windowTitle,
 			"clipboard":    "", // We'll leave this empty for now

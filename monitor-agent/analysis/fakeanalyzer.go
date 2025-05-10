@@ -1,12 +1,14 @@
 package analysis
 
 import (
+	"log"
 	"math/rand"
 	"strings"
 	"time"
 )
 
 type AnalysisResult struct {
+	RawData     string
 	Keywords    []string
 	Confidence  float64
 	IsFlagged   bool
@@ -106,6 +108,11 @@ func (a *FakeAnalyzer) AnalyzeScreenshot(imagePath string) AnalysisResult {
 	filename := parts[len(parts)-1]
 	windowTitle := strings.ToLower(filename)
 
+	textExtraction, err := a.FileExtraction(imagePath)
+	if err != nil {
+		log.Printf("Error extracting text from image: %v", err)
+	}
+
 	// Simulate random analysis with context-aware keywords
 	rand.Seed(time.Now().UnixNano())
 
@@ -145,6 +152,7 @@ func (a *FakeAnalyzer) AnalyzeScreenshot(imagePath string) AnalysisResult {
 
 	// Fallback for no context match
 	return AnalysisResult{
+		RawData:     textExtraction,
 		Keywords:    []string{"general", "activity"},
 		Confidence:  0.1,
 		IsFlagged:   false,
